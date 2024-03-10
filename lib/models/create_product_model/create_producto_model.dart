@@ -7,7 +7,7 @@ String CreateProductModelToJson(CreateProductModel data) => json.encode(data.toJ
 
 class CreateProductModel {
   CreateProductModel({required this.image,
-    required this.id,
+
     required this.name,
     required this.price,
     required this.description,
@@ -16,7 +16,7 @@ class CreateProductModel {
 
     this.qty});
 
-  String id;
+
   String name;
   String image;
   String description;
@@ -28,7 +28,7 @@ class CreateProductModel {
 
   factory CreateProductModel.fromJson(Map<String, dynamic> json) =>
       CreateProductModel(
-        id: json["id"],
+
         name: json["name"],
         image: json["image"],
         description: json["description"],
@@ -43,7 +43,7 @@ class CreateProductModel {
 
   Map<String, dynamic> toJson() =>
       {
-        "id": id,
+
         "name": name,
         "image": image,
         "description": description,
@@ -61,7 +61,7 @@ class CreateProductModel {
     int? qty,
   }) =>
       CreateProductModel(image: image,
-        id: id,
+
         name: name,
         price: price,
         description: description,

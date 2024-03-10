@@ -1,171 +1,203 @@
-import 'package:conexion/constants/constants.dart';
-import 'package:conexion/constants/routes.dart';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:conexion/models/product_model/product_model.dart';
 import 'package:conexion/provider/app_provider.dart';
-import 'package:conexion/screens/check_out/check_out.dart';
-import 'package:conexion/screens/cart_screen/cart_screen.dart';
-import 'package:conexion/screens/favourite_screen/favourite_screen.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
+import 'package:conexion/firebase_helper/firebase_firestore_helper/firebase_firestore.dart';
 import 'package:provider/provider.dart';
 
 class ProductDetails extends StatefulWidget {
   final ProductModel singleProduct;
 
-  const ProductDetails({super.key, required this.singleProduct});
+  const ProductDetails({Key? key, required this.singleProduct}) : super(key: key);
 
   @override
   State<ProductDetails> createState() => _ProductDetailsState();
 }
 
 class _ProductDetailsState extends State<ProductDetails> {
-  int qty = 1;
+  File? image;
+  TextEditingController nameController = TextEditingController();
+  TextEditingController descriptionController = TextEditingController();
+  TextEditingController qtyController = TextEditingController();
+  TextEditingController priceController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    nameController.text = widget.singleProduct.name;
+    descriptionController.text = widget.singleProduct.description;
+    qtyController.text = widget.singleProduct.qty.toString();
+    priceController.text = widget.singleProduct.price.toString();
+  }
+
+  void updatePicture() async {
+    XFile? value = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 40,
+    );
+    if (value != null) {
+      setState(() {
+        image = File(value.path);
+      });
+    }
+  }
+
+  void updateProduct(BuildContext context) async {
+    try {
+      String name = nameController.text;
+      String description = descriptionController.text;
+      int qty = int.tryParse(qtyController.text) ?? 0;
+      double price = double.tryParse(priceController.text) ?? 0.0;
+
+      await FirebaseFirestoreHelper.instance.updateProduct(
+        widget.singleProduct.id,
+        name,
+        description,
+        qty,
+        price,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Producto actualizado con éxito'),
+        ),
+      );
+    } catch (e) {
+      print('Error al actualizar el producto: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error al actualizar el producto'),
+        ),
+      );
+    }
+  }
+
+  void deleteProduct(BuildContext context) async {
+    try {
+      await FirebaseFirestoreHelper.instance.deleteProduct(widget.singleProduct.id);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Producto eliminado con éxito'),
+        ),
+      );
+
+      Navigator.pop(context);
+    } catch (e) {
+      print('Error al eliminar el producto: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error al eliminar el producto'),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    AppProvider appProvider = Provider.of<AppProvider>(
-      context,
-    );
     return Scaffold(
       appBar: AppBar(
-        actions: [
-          IconButton(
-            onPressed: () {
-              Routes.instance
-                  .push(widget: const CartScreen(), context: context);
-            },
-            icon: const Icon(Icons.shopping_cart),
-          )
-        ],
+        title: const Text("Editar Producto"),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(12),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Image.network(
-                widget.singleProduct.image,
-                height: 400,
-                width: 400,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: GestureDetector(
+                onTap: updatePicture,
+                child: Container(
+                  height: MediaQuery.of(context).size.height * 0.2,
+                  width: MediaQuery.of(context).size.width * 0.4,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.5),
+                        spreadRadius: 5,
+                        blurRadius: 7,
+                        offset: Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      if (image != null)
+                        Image.file(
+                          image!,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                      if (widget.singleProduct.image.isNotEmpty)
+                        Image.network(
+                          widget.singleProduct.image,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                      const Align(
+                        alignment: Alignment.center,
+                        child: Icon(
+                          Icons.camera_alt,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    widget.singleProduct.name,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      setState(() {
-                        widget.singleProduct.isFavourite =
-                            !widget.singleProduct.isFavourite;
-                      });
-                      if (widget.singleProduct.isFavourite) {
-                        appProvider.addFavouriteProduct(widget.singleProduct);
-                      } else {
-                        appProvider
-                            .removeFavouriteProduct(widget.singleProduct);
-                      }
-                    },
-                    icon: Icon(appProvider.getFavouriteProductList
-                            .contains(widget.singleProduct)
-                        ? Icons.favorite
-                        : Icons.favorite_border_outlined),
-                  )
-                ],
+            ),
+            const SizedBox(height: 20.0),
+            TextFormField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Nombre del Producto',
               ),
-              Text(widget.singleProduct.description),
-              const SizedBox(
-                height: 12,
+            ),
+            const SizedBox(height: 20.0),
+            TextFormField(
+              controller: qtyController,
+              decoration: const InputDecoration(
+                labelText: 'Cantidad',
               ),
-              Row(
-                children: [
-                  CupertinoButton(
-                    onPressed: () {
-                      if (qty >= 1) {
-                        setState(() {
-                          qty--;
-                        });
-                      }
-                    },
-                    padding: EdgeInsets.zero,
-                    child: CircleAvatar(
-                      child: Icon(Icons.remove),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 12,
-                  ),
-                  Text(
-                    qty.toString(),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(
-                    width: 12,
-                  ),
-                  CupertinoButton(
-                    onPressed: () {
-                      setState(() {
-                        qty++;
-                      });
-                    },
-                    padding: EdgeInsets.zero,
-                    child: CircleAvatar(
-                      child: Icon(Icons.add),
-                    ),
-                  ),
-                ],
+            ),
+            const SizedBox(height: 20.0),
+            TextFormField(
+              controller: descriptionController,
+              decoration: const InputDecoration(
+                labelText: 'Descripción',
               ),
-              //const Spacer(),
-              const SizedBox(
-                height: 24,
+              maxLines: 3,
+            ),
+            const SizedBox(height: 20.0),
+            TextFormField(
+              controller: priceController,
+              decoration: const InputDecoration(
+                labelText: 'Precio',
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  OutlinedButton(
-                    onPressed: () {
-                      ProductModel productModel =
-                          widget.singleProduct.copyWith(qty: qty);
-                      appProvider.addCartProduct(productModel);
-                      showMessage("Agregado al carrito");
-                    },
-                    child: const Text(
-                      "Agregar al carrito",
-                    ),
-                  ),
-                  SizedBox(
-                    width: 24,
-                  ),
-                  SizedBox(
-                    height: 38,
-                    width: 140,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        ProductModel productModel =
-                            widget.singleProduct.copyWith(qty: qty);
-                        Routes.instance.push(
-                            widget: Checkout(singleProduct: productModel),
-                            context: context);
-                      },
-                      child: const Text("Comprar"),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(
-                height: 50,
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 20.0),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton(
+                  onPressed: () => updateProduct(context),
+                  child: const Text('Editar'),
+                ),
+                ElevatedButton(
+                  onPressed: () => deleteProduct(context),
+                  child: const Text('Eliminar'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

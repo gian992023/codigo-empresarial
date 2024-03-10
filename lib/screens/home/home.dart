@@ -37,7 +37,7 @@ class _HomeState extends State<Home> {
     });
     FirebaseFirestoreHelper.instance.updateTokenFromFirebase();
     categoriesList = await FirebaseFirestoreHelper.instance.getCategories();
-    productModelList = await FirebaseFirestoreHelper.instance.getBestProducts();
+    productModelList = await FirebaseFirestoreHelper.instance.getUserProducts();
     productModelList.shuffle();
     setState(() {
       isLoading = false;
@@ -143,7 +143,7 @@ class _HomeState extends State<Home> {
                   !isSearched()? const Padding(
                     padding: EdgeInsets.only(top: 12.0, left: 12),
                     child: Text(
-                      "Mas vendidos",
+                      "Mis productos",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -171,7 +171,7 @@ class _HomeState extends State<Home> {
                           searchList[index];
                           return Container(
                             decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.5),
+                                color: Colors.white.withOpacity(0.5),
                                 borderRadius: BorderRadius.circular(8)),
                             child: Column(
                               children: [
@@ -193,7 +193,7 @@ class _HomeState extends State<Home> {
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                Text("price: \$${singleProduct.price}"),
+                                Text("Cantidad: ${singleProduct.qty}"),
                                 const SizedBox(
                                   height: 30,
                                 ),
@@ -237,10 +237,21 @@ class _HomeState extends State<Home> {
                               itemBuilder: (ctx, index) {
                                 ProductModel singleProduct =
                                     productModelList[index];
+                                //CONTENEDOR DE PRODUCTOS
                                 return Container(
-                                  decoration: BoxDecoration(
-                                      color: Colors.red.withOpacity(0.5),
-                                      borderRadius: BorderRadius.circular(8)),
+                                    decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.5),
+                                borderRadius: BorderRadius.circular(8),
+                                boxShadow: [
+                                BoxShadow(
+                                color: Colors.grey.withOpacity(0.5),
+                                spreadRadius: 5,
+                                blurRadius: 7,
+                                offset: Offset(0, 3), // Cambia el desplazamiento de la sombra según sea necesario
+                                ),
+                                ],
+                                    ),
+
                                   child: Column(
                                     children: [
                                       const SizedBox(
@@ -261,9 +272,12 @@ class _HomeState extends State<Home> {
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      Text("price: \$${singleProduct.price}"),
                                       const SizedBox(
-                                        height: 30,
+                                        height: 6,
+                                      ),
+                                      Text("Cantidad: ${singleProduct.qty}"),
+                                      const SizedBox(
+                                        height: 26,
                                       ),
                                       SizedBox(
                                         height: 45,
@@ -277,7 +291,7 @@ class _HomeState extends State<Home> {
                                                 context: context);
                                           },
                                           child: const Text(
-                                            "Buy",
+                                            "Editar",
                                           ),
                                         ),
                                       ),

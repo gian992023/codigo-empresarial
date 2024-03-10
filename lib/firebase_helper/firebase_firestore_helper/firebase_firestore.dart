@@ -16,10 +16,16 @@ class FirebaseFirestoreHelper {
   static FirebaseFirestoreHelper instance = FirebaseFirestoreHelper();
   final FirebaseFirestore _firebaseFirestore = FirebaseFirestore.instance;
 
+
+  //Funcion obtener categorias de productos
   Future<List<CategoryModel>> getCategories() async {
     try {
-      QuerySnapshot<Map<String, dynamic>> querySnapshot =
-      await _firebaseFirestore.collection("categories").get();
+      String userId = FirebaseAuth.instance.currentUser!.uid;
+      QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore.instance
+          .collection("userProducts")
+          .doc(userId)
+          .collection("categories")
+          .get();
       List<CategoryModel> categoriesList = querySnapshot.docs
           .map((e) => CategoryModel.fromJson(e.data()))
           .toList();
@@ -31,6 +37,7 @@ class FirebaseFirestoreHelper {
   }
   Future<CategoryModel?> getCategory(String categoryId) async {
     try {
+
       DocumentSnapshot<Map<String, dynamic>> categorySnapshot =
       await FirebaseFirestore.instance.collection("categories").doc(categoryId).get();
       if (categorySnapshot.exists) {
@@ -45,7 +52,7 @@ class FirebaseFirestoreHelper {
   }
 
 
-
+//Funcion Creacion producto
   Future<bool> createProductFirebase(CreateProductModel product,  BuildContext context, String categoryId) async {
     try {
       String userId = FirebaseAuth.instance.currentUser!.uid;
@@ -68,16 +75,23 @@ class FirebaseFirestoreHelper {
           "image": category.image,
           "name": category.name,
         });
-        CollectionReference productsCollection = documentReference.collection("Products");
+        CollectionReference productsCollection = documentReference.collection("products");
 
-        DocumentReference productDocRef = await productsCollection.add({
+        DocumentReference productDocRef = await documentReference.collection("products").add({
 
           "image": product.image,
+          "id": "",
           "name": product.name,
           "price": product.price,
           "description": product.description,
           "qty": product.qty,
         });
+        // Obtener el ID generado automáticamente por Firestore
+        String productId = productDocRef.id;
+
+        // Actualizar el valor del campo "id" con el ID generado automáticamente
+        await productDocRef.update({"id": productId});
+
 
 
         print("Producto creado en la categoría ${category.name} para el usuario $userId");
@@ -107,15 +121,44 @@ class FirebaseFirestoreHelper {
       return [];
     }
   }
+//Funcion obtencion producots de usuario empresarial
+  Future<List<ProductModel>> getUserProducts() async {
+    try {
+      String userId = FirebaseAuth.instance.currentUser!.uid;
+      QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore.instance
+          .collection("userProducts")
+          .doc(userId)
+          .collection("categories")
+          .get();
+      List<ProductModel> userProductsList = [];
+
+      for (QueryDocumentSnapshot<Map<String, dynamic>> doc in querySnapshot.docs) {
+        QuerySnapshot<Map<String, dynamic>> productsSnapshot =
+        await doc.reference.collection("products").get();
+        List<ProductModel> products = productsSnapshot.docs
+            .map((e) => ProductModel.fromJson(e.data()))
+            .toList();
+        userProductsList.addAll(products);
+      }
+
+      return userProductsList;
+    } catch (e) {
+      showMessage(e.toString());
+      return [];
+    }
+  }
 
 
 //funcion Obtener informacion de categorias y sus productos
-  Future<List<ProductModel>> getCategoryViewProduct(String id) async {
+  Future<List<ProductModel>> getCategoryViewProduct(String categoryId) async {
     try {
+      String userId = FirebaseAuth.instance.currentUser!.uid;
       QuerySnapshot<Map<String, dynamic>> querySnapshot =
       await _firebaseFirestore
+          .collection("userProducts")
+          .doc(userId)
           .collection("categories")
-          .doc(id)
+          .doc(categoryId)
           .collection("products")
           .get();
       List<ProductModel> productModelList = querySnapshot.docs
@@ -127,6 +170,7 @@ class FirebaseFirestoreHelper {
       return [];
     }
   }
+
 
 //funcion obtener informacion del usuario empresarial
   Future<UserModel> getUserInformation() async {
@@ -209,6 +253,118 @@ class FirebaseFirestoreHelper {
           .update({
         "notificationToken": token,
       });
+    }
+  }
+// Función para actualizar un producto en Firestore
+  Future<void> updateProduct(
+      String productId,
+      String name,
+      String description,
+      int qty,
+      double price,
+      ) async {
+    try {
+      String userId = FirebaseAuth.instance.currentUser!.uid;
+      QuerySnapshot querySnapshot = await _firebaseFirestore
+          .collection("userProducts")
+          .doc(userId)
+          .collection("categories")
+          .get();
+
+      bool productFound = false;
+      String? categorieId;
+
+      for (QueryDocumentSnapshot documentSnapshot in querySnapshot.docs) {
+        String currentCategorieId = documentSnapshot.id;
+        QuerySnapshot productsQuerySnapshot = await _firebaseFirestore
+            .collection("userProducts")
+            .doc(userId)
+            .collection("categories")
+            .doc(currentCategorieId)
+            .collection("products")
+            .where('id', isEqualTo: productId)
+            .get();
+
+        if (productsQuerySnapshot.docs.isNotEmpty) {
+          productFound = true;
+          categorieId = currentCategorieId;
+          break;
+        }
+      }
+
+      if (productFound) {
+        await _firebaseFirestore
+            .collection("userProducts")
+            .doc(userId)
+            .collection("categories")
+            .doc(categorieId)
+            .collection("products")
+            .doc(productId)
+            .update({
+          'name': name,
+          'description': description,
+          'qty': qty,
+          'price': price,
+        });
+      } else {
+        print('No se encontró el producto con el id: $productId');
+        throw Exception('No se encontró el producto con el id: $productId');
+      }
+    } catch (e) {
+      // Manejar errores
+      print('Error al actualizar el producto: $e');
+      throw e; // Puedes manejar el error de otra manera si lo deseas
+    }
+  }
+
+  // Función para eliminar un producto de Firestore
+  Future<void> deleteProduct(String productId) async {
+    try {
+      String userId = FirebaseAuth.instance.currentUser!.uid;
+      QuerySnapshot querySnapshot = await _firebaseFirestore
+          .collection("userProducts")
+          .doc(userId)
+          .collection("categories")
+          .get();
+
+      bool productFound = false;
+      String? categorieId;
+
+      for (QueryDocumentSnapshot documentSnapshot in querySnapshot.docs) {
+        String tempCategorieId = documentSnapshot.id;
+        QuerySnapshot productsQuerySnapshot = await _firebaseFirestore
+            .collection("userProducts")
+            .doc(userId)
+            .collection("categories")
+            .doc(tempCategorieId)
+            .collection("products")
+            .where('id', isEqualTo: productId)
+            .get();
+
+        if (productsQuerySnapshot.docs.isNotEmpty) {
+          productFound = true;
+          categorieId = tempCategorieId;
+          break;
+        }
+      }
+
+      if (productFound) {
+        await _firebaseFirestore
+            .collection("userProducts")
+            .doc(userId)
+            .collection("categories")
+            .doc(categorieId!)
+            .collection('products')
+            .doc(productId)
+            .delete();
+      } else {
+        print('No se encontró el producto con el id: $productId');
+        throw Exception('No se encontró el producto con el id: $productId');
+      }
+    } catch (e) {
+      // Manejar errores
+      print('Error al eliminar el producto: $e');
+      throw e; // Puedes manejar el error de otra manera si lo deseas
     }
   }
 }

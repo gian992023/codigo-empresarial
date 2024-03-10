@@ -257,12 +257,13 @@ class _RegisterProductState extends State<RegisterProduct> {
     // Crear el objeto CreateProductModel con la URL de la imagen
     CreateProductModel product = CreateProductModel(
     image: imageUrl,  // Establecer la URL de la imagen
-    id: '',
+
     name: name,
     price: price,
     description: description,
     qty: qty,
     );
     // Crear el producto en Firestore
-    FirebaseFirestoreHelper().createProductFirebase(product, context, categoryId);
+    bool success = await FirebaseFirestoreHelper().createProductFirebase(product, context, categoryId);
+
   }}
