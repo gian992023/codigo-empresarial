@@ -84,7 +84,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   ListTile(
                     onTap: () {
                       Routes.instance
-                          .push(widget: const OrderScreen(), context: context);
+                          .push(widget: const OrdersScreen(), context: context);
                     },
                     leading: Icon(Icons.shopping_bag_outlined),
                     title: Text("Tus pedidos"),

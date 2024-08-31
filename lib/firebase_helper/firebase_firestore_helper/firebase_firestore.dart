@@ -121,7 +121,7 @@ class FirebaseFirestoreHelper {
       return [];
     }
   }
-//Funcion obtencion producots de usuario empresarial
+//Funcion obtencion productos de usuario empresarial
   Future<List<ProductModel>> getUserProducts() async {
     try {
       String userId = FirebaseAuth.instance.currentUser!.uid;
@@ -225,23 +225,80 @@ class FirebaseFirestoreHelper {
   }
 
   //funcion obtener orden usuario
-  Future<List<OrderModel>> getUserOrder() async {
+  Future<List<RequestModel>> getUserOrder() async {
     try {
-      QuerySnapshot<Map<String, dynamic>> querySnapshot =
-      await _firebaseFirestore
-          .collection("userOrders")
-          .doc(FirebaseAuth.instance.currentUser!.uid)
-          .collection("orders")
-          .get();
-      List<OrderModel> orderList = querySnapshot.docs
-          .map((element) => OrderModel.fromJson(element.data()))
-          .toList();
+      String? userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) {
+        print("User ID is null");
+        return [];
+      }
+
+      List<RequestModel> orderList = [];
+
+      print("User ID: $userId");
+
+      // Obtener el documento específico de la colección "ventas"
+      DocumentSnapshot<Map<String, dynamic>> ventasDoc;
+      try {
+        ventasDoc = await _firebaseFirestore
+            .collection("ventas")
+            .doc(userId)
+            .get();
+      } catch (e) {
+        print("Error fetching ventasDoc: $e");
+        return [];
+      }
+
+      print("Ventas doc snapshot: ${ventasDoc.data()}");
+
+      if (ventasDoc.exists) {
+        print("Ventas doc existe");
+
+        // Obtener las subcolecciones de clientes
+        QuerySnapshot<Map<String, dynamic>> clientSnapshot;
+        try {
+          clientSnapshot = await ventasDoc.reference
+              .collection("zRkPQZUV4ma5aubw5K0ovDBkWNI3")
+              .get();
+        } catch (e) {
+          print("Error fetching clientSnapshot: $e");
+          return [];
+        }
+
+        for (var clientDoc in clientSnapshot.docs) {
+          print("Cliente doc ID: ${clientDoc.id}");
+
+          // Obtener el documento específico del pedido
+          DocumentSnapshot<Map<String, dynamic>> orderDoc;
+          try {
+            orderDoc = await clientDoc.reference
+                .collection("zRkPQZUV4ma5aubw5K0ovDBkWNI3") // Navegar a la subcolección
+                .doc("9NxNbRQzFP3fI2IM1TMW") // Especificar el documento
+                .get();
+          } catch (e) {
+            print("Error fetching orderDoc: $e");
+            continue;
+          }
+
+          if (orderDoc.exists) {
+            print("Pedido encontrado: ${orderDoc.id}");
+            orderList.add(RequestModel.fromJson(orderDoc.data()!));
+          } else {
+            print("Pedido no encontrado: 9NxNbRQzFP3fI2IM1TMW");
+          }
+        }
+      } else {
+        print("Ventas doc no existe");
+      }
+
       return orderList;
     } catch (e) {
-      showMessage(e.toString());
+      print("Error fetching orders: $e");
       return [];
     }
   }
+
+
 
 //funcion actualizar token de usuario empresarial
   void updateTokenFromFirebase() async {

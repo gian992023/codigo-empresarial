@@ -24,7 +24,7 @@ class _CustomBottomBarState extends State<CustomBottomBar> {
   List<Widget> _buildScreens() => [
         const Home(),
         const RegisterProduct(),
-        const OrderScreen(),
+        const OrdersScreen(),
         const AccountScreen(),
       ];
 

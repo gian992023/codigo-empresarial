@@ -1,191 +1,187 @@
-import 'package:conexion/firebase_helper/firebase_firestore_helper/firebase_firestore.dart';
-import 'package:conexion/models/order_model/order_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class OrderScreen extends StatelessWidget {
-  const OrderScreen({super.key});
+class OrdersScreen extends StatefulWidget {
+  const OrdersScreen({Key? key}) : super(key: key);
+
+  @override
+  _OrdersScreenState createState() => _OrdersScreenState();
+}
+
+class _OrdersScreenState extends State<OrdersScreen> {
+  FirebaseFirestore _firebaseFirestore = FirebaseFirestore.instance;
+
+  String? userId = FirebaseAuth.instance.currentUser?.uid;
+  bool isLoading = true;
+  List<Map<String, dynamic>> clientsList = [];
+  Map<String, List<Map<String, dynamic>>> clientProductsMap = {};
+  String? selectedClientId;
+
+  @override
+  void initState() {
+    super.initState();
+    getUserOrders();
+  }
+
+  Future<void> getUserOrders() async {
+    if (userId == null) {
+      print("User ID is null");
+      setState(() {
+        isLoading = false;
+      });
+      return;
+    }
+
+    try {
+      // Obtener la colección de clientes dentro de ventas
+      QuerySnapshot<Map<String, dynamic>> clientsQuerySnapshot = await _firebaseFirestore
+          .collection("ventas")
+          .doc(userId)
+          .collection("clientes")
+          .get();
+
+      clientsList.clear();
+      clientProductsMap.clear();
+
+      for (var clientDoc in clientsQuerySnapshot.docs) {
+        String clientId = clientDoc.id;
+        clientsList.add({
+          "clientId": clientId,
+          "name": clientDoc.data()['name'] ?? 'Sin nombre',
+        });
+
+        // Obtener la subcolección de productos para cada cliente
+        QuerySnapshot<Map<String, dynamic>> productsQuerySnapshot = await _firebaseFirestore
+            .collection("ventas")
+            .doc(userId)
+            .collection("clientes")
+            .doc(clientId)
+            .collection("productos")
+            .get();
+
+        clientProductsMap[clientId] = [];
+
+        for (var productDoc in productsQuerySnapshot.docs) {
+          Map<String, dynamic> productData = productDoc.data();
+          clientProductsMap[clientId]!.add({
+            "productId": productDoc.id,
+            "name": productData['product']['name'],
+            "qty": productData['product']['qty'],
+            "status": productData['status']
+          });
+        }
+      }
+
+      setState(() {
+        isLoading = false;
+      });
+    } catch (e) {
+      print("Error retrieving orders: $e");
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  void _updateOrderStatus(String clientId, String productId, String status) async {
+    try {
+      if (status == 'rechazado') {
+        await _firebaseFirestore
+            .collection("ventas")
+            .doc(userId)
+            .collection("clientes")
+            .doc(clientId)
+            .collection("productos")
+            .doc(productId)
+            .delete();
+      } else {
+        await _firebaseFirestore
+            .collection("ventas")
+            .doc(userId)
+            .collection("clientes")
+            .doc(clientId)
+            .collection("productos")
+            .doc(productId)
+            .update({"status": status});
+      }
+
+      // Refrescar la lista de productos después de la actualización
+      await getUserOrders();
+    } catch (e) {
+      print("Error updating order status: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        centerTitle: true,
-        title: const Text(
-          "Mis ordenes",
-          style: TextStyle(
-            color: Colors.black,
-          ),
-        ),
+        title: Text('Pedidos de Clientes'),
       ),
-      body: FutureBuilder(
-        future: FirebaseFirestoreHelper.instance.getUserOrder(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: Text("No se encontraron ordenes"),
-            );
-          }
-
-          if (snapshot.data!.isEmpty ||
-              snapshot.data == null ||
-              !snapshot.hasData) {
-            return const Center(
-              child: Text("No se encontraron ordenes"),
-            );
-          }
-          return  Padding(padding: const EdgeInsets.only(bottom: 50),
-            child:
-            ListView.builder(
-            itemCount: snapshot.data!.length,
-            padding: const EdgeInsets.all(12),
-            itemBuilder: (context, index) {
-              OrderModel orderModel = snapshot.data![index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  collapsedShape: const RoundedRectangleBorder(
-                      side: BorderSide(color: Colors.red, width: 2.3)),
-                  shape: const RoundedRectangleBorder(
-                      side: BorderSide(color: Colors.red, width: 2.3)),
-                  title: Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Container(
-                        height: 120,
-                        width: 120,
-                        color: Colors.red.withOpacity(0.5),
-                        child: Image.network(
-                          orderModel.products[0].image,
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              orderModel.products[0].name,
-                              style: TextStyle(
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(
-                              height: 12,
-                            ),
-                            orderModel.products.length > 1
-                                ? SizedBox.fromSize()
-                                : Column(
-                                    children: [
-                                      Text(
-                                        "Cantidad: \$${orderModel.products[0].qty.toString()}",
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      const SizedBox(
-                                        height: 12,
-                                      ),
-                                    ],
-                                  ),
-                            Text(
-                              "Precio total: \$${orderModel.totalPrice.toString()}",
-                              style: TextStyle(
-                                fontSize: 12,
-                              ),
-                            ),
-                            SizedBox(
-                              height: 12,
-                            ),
-                            Text(
-                              "Estado de orden: ${orderModel.status}",
-                              style: TextStyle(
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  children: orderModel.products.length > 1
-                      ? [
-                          const Text("Details"),
-                          const Divider(color: Colors.red),
-                          ...orderModel.products.map((singleProduct) {
-                            return Padding(
-                              padding:
-                                  const EdgeInsets.only(left: 12.0, top: 6.0),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.baseline,
-                                    textBaseline: TextBaseline.alphabetic,
-                                    children: [
-                                      Container(
-                                        height: 80,
-                                        width: 80,
-                                        color: Colors.red.withOpacity(0.5),
-                                        child: Image.network(
-                                          singleProduct.image,
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.all(12),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              singleProduct.name,
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                            const SizedBox(
-                                              height: 12,
-                                            ),
-                                            Column(
-                                              children: [
-                                                Text(
-                                                  "Cantidad: ${singleProduct.qty.toString()}",
-                                                  style: const TextStyle(
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                                const SizedBox(
-                                                  height: 12,
-                                                ),
-                                              ],
-                                            ),
-                                            Text(
-                                              "Precio: \$${singleProduct.price.toString()}",
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const Divider(color: Colors.red),
-                                ],
-                              ),
-                            );
-                          }).toList()
-                        ]
-                      : [],
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : ListView.builder(
+        itemCount: clientsList.length,
+        itemBuilder: (context, index) {
+          var client = clientsList[index];
+          return ExpansionTile(
+            title: Text('Cliente: ${client['name']}'),
+            onExpansionChanged: (expanded) {
+              setState(() {
+                selectedClientId = expanded ? client['clientId'] : null;
+              });
+            },
+            children: selectedClientId == client['clientId']
+                ? clientProductsMap[client['clientId']]!.map((product) {
+              return Card(
+                child: ListTile(
+                  title: Text('Nombre: ${product['name']}'),
+                  subtitle: Text('Cantidad: ${product['qty']}'),
+                  trailing: Text('Estado: ${product['status']}'),
+                  onTap: product['status'] == 'aceptado'
+                      ? null
+                      : () {
+                    _showOrderDialog(context, client['clientId'],
+                        product['productId'], product['status']);
+                  },
                 ),
               );
-            },
-            ),
+            }).toList()
+                : [],
           );
         },
       ),
+    );
+  }
+
+  void _showOrderDialog(BuildContext context, String clientId, String productId, String currentStatus) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Pedido de $productId'),
+          content: Text('¿Acepta este pedido?'),
+          actions: [
+            if (currentStatus != 'aceptado') ...[
+              TextButton(
+                onPressed: () {
+                  _updateOrderStatus(clientId, productId, 'rechazado');
+                  Navigator.of(context).pop();
+                },
+                child: Text('Rechazar'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  _updateOrderStatus(clientId, productId, 'aceptado');
+                  Navigator.of(context).pop();
+                },
+                child: Text('Aceptar'),
+              ),
+            ]
+          ],
+        );
+      },
     );
   }
 }
