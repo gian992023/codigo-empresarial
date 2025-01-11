@@ -96,6 +96,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
             .doc(productId)
             .delete();
       } else {
+        // Actualiza el estatus en la colección "ventas"
         await _firebaseFirestore
             .collection("ventas")
             .doc(userId)
@@ -104,6 +105,42 @@ class _OrdersScreenState extends State<OrdersScreen> {
             .collection("productos")
             .doc(productId)
             .update({"status": status});
+
+        // Obtener el idventa para buscar en las colecciones "orders" y "userOrders"
+        DocumentSnapshot<Map<String, dynamic>> productDoc = await _firebaseFirestore
+            .collection("ventas")
+            .doc(userId)
+            .collection("clientes")
+            .doc(clientId)
+            .collection("productos")
+            .doc(productId)
+            .get();
+
+        String idventa = productDoc.data()?["idventa"];
+
+        if (idventa != null && idventa.isNotEmpty) {
+          // Actualiza el estatus en la colección "orders"
+          QuerySnapshot<Map<String, dynamic>> ordersQuerySnapshot = await _firebaseFirestore
+              .collection("orders")
+              .where("idventa", isEqualTo: idventa)
+              .get();
+
+          for (var orderDoc in ordersQuerySnapshot.docs) {
+            await orderDoc.reference.update({"status": status});
+          }
+
+          // Actualiza el estatus en la colección "userOrders"
+          QuerySnapshot<Map<String, dynamic>> userOrdersQuerySnapshot = await _firebaseFirestore
+              .collection("userOrders")
+              .doc(clientId)
+              .collection("orders")
+              .where("idventa", isEqualTo: idventa)
+              .get();
+
+          for (var userOrderDoc in userOrdersQuerySnapshot.docs) {
+            await userOrderDoc.reference.update({"status": status});
+          }
+        }
       }
 
       // Refrescar la lista de productos después de la actualización
@@ -112,6 +149,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       print("Error updating order status: $e");
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -136,7 +174,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 ? clientProductsMap[client['clientId']]!.map((product) {
               return Card(
                 child: ListTile(
-                  title: Text('Nombre: ${product['name']}'),
+                  title: Text('Producto: ${product['name']}'),
                   subtitle: Text('Cantidad: ${product['qty']}'),
                   trailing: Text('Estado: ${product['status']}'),
                   onTap: product['status'] == 'aceptado'
