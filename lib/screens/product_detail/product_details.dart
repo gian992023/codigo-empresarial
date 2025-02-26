@@ -22,6 +22,7 @@ class _ProductDetailsState extends State<ProductDetails> {
   TextEditingController descriptionController = TextEditingController();
   TextEditingController qtyController = TextEditingController();
   TextEditingController priceController = TextEditingController();
+  TextEditingController discountController = TextEditingController();
 
   @override
   void initState() {
@@ -50,7 +51,6 @@ class _ProductDetailsState extends State<ProductDetails> {
       String description = descriptionController.text;
       int qty = int.tryParse(qtyController.text) ?? 0;
       double price = double.tryParse(priceController.text) ?? 0.0;
-
       await FirebaseFirestoreHelper.instance.updateProduct(
         widget.singleProduct.id,
         name,
@@ -58,7 +58,6 @@ class _ProductDetailsState extends State<ProductDetails> {
         qty,
         price,
       );
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Producto actualizado con éxito'),
@@ -77,19 +76,48 @@ class _ProductDetailsState extends State<ProductDetails> {
   void deleteProduct(BuildContext context) async {
     try {
       await FirebaseFirestoreHelper.instance.deleteProduct(widget.singleProduct.id);
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Producto eliminado con éxito'),
         ),
       );
-
       Navigator.pop(context);
     } catch (e) {
       print('Error al eliminar el producto: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Error al eliminar el producto'),
+        ),
+      );
+    }
+  }
+
+  void applyDiscount(BuildContext context) async {
+    try {
+      double discount = double.tryParse(discountController.text) ?? 0.0;
+      double originalPrice = double.tryParse(priceController.text) ?? 0.0;
+      double discountedPrice = originalPrice - (originalPrice * discount / 100);
+
+      await FirebaseFirestoreHelper.instance.updateProduct(
+        widget.singleProduct.id,
+        nameController.text,
+        descriptionController.text,
+        int.tryParse(qtyController.text) ?? 0,
+        originalPrice, // Precio original
+        isOnPromotion: true, // Indica que el producto está en promoción
+        discountedPrice: discountedPrice, // Guarda el precio descontado
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Promoción aplicada con éxito'),
+        ),
+      );
+    } catch (e) {
+      print('Error al aplicar la promoción: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error al aplicar la promoción'),
         ),
       );
     }
@@ -153,21 +181,21 @@ class _ProductDetailsState extends State<ProductDetails> {
                 ),
               ),
             ),
-            const SizedBox(height: 20.0),
+            const SizedBox(height: 18.0),
             TextFormField(
               controller: nameController,
               decoration: const InputDecoration(
                 labelText: 'Nombre del Producto',
               ),
             ),
-            const SizedBox(height: 20.0),
+            const SizedBox(height: 18.0),
             TextFormField(
               controller: qtyController,
               decoration: const InputDecoration(
                 labelText: 'Cantidad',
               ),
             ),
-            const SizedBox(height: 20.0),
+            const SizedBox(height: 18.0),
             TextFormField(
               controller: descriptionController,
               decoration: const InputDecoration(
@@ -175,14 +203,21 @@ class _ProductDetailsState extends State<ProductDetails> {
               ),
               maxLines: 3,
             ),
-            const SizedBox(height: 20.0),
+            const SizedBox(height: 18.0),
             TextFormField(
               controller: priceController,
               decoration: const InputDecoration(
                 labelText: 'Precio',
               ),
             ),
-            const SizedBox(height: 20.0),
+            const SizedBox(height: 18.0),
+            TextFormField(
+              controller: discountController,
+              decoration: const InputDecoration(
+                labelText: 'Descuento (%)',
+              ),
+            ),
+            const SizedBox(height: 20.0), // Espacio adicional antes de los botones
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -195,8 +230,14 @@ class _ProductDetailsState extends State<ProductDetails> {
                   child: const Text('Eliminar'),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                 ),
+                ElevatedButton(
+                  onPressed: () => applyDiscount(context),
+                  child: const Text('Aplicar Promoción'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                ),
               ],
             ),
+            const SizedBox(height: 20.0), // Espacio adicional después de los botones
           ],
         ),
       ),

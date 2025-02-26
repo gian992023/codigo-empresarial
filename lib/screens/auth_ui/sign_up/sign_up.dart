@@ -20,7 +20,6 @@ class SignUp extends StatefulWidget {
 
 class _SignUpState extends State<SignUp> {
   TextEditingController email = TextEditingController();
-
   TextEditingController name = TextEditingController();
   TextEditingController phone = TextEditingController();
   TextEditingController password = TextEditingController();
@@ -76,6 +75,7 @@ class _SignUpState extends State<SignUp> {
             const SizedBox(
               height: 12,
             ),
+
             TextFormField(
               controller: password,
               obscureText: isShowPassword,
@@ -88,7 +88,6 @@ class _SignUpState extends State<SignUp> {
                     onPressed: () {
                       setState(() {
                         isShowPassword = !isShowPassword;
-                        print(isShowPassword);
                       });
                     },
                     padding: EdgeInsets.zero,
@@ -99,7 +98,7 @@ class _SignUpState extends State<SignUp> {
               height: 36,
             ),
             PrimaryButton(
-              title: "Crear cuentas",
+              title: "Crear cuenta",
               onPressed: () async {
                 bool isValidated = singUpValidation(
                     email.text, password.text, name.text, phone.text);
@@ -126,7 +125,7 @@ class _SignUpState extends State<SignUp> {
                   Navigator.of(context).pop();
                 },
                 child: Text(
-                  "Iniciar sesion",
+                  "Iniciar sesión",
                   style: TextStyle(color: Theme.of(context).primaryColor),
                 ),
               ),

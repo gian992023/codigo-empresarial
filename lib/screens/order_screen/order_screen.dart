@@ -11,7 +11,6 @@ class OrdersScreen extends StatefulWidget {
 
 class _OrdersScreenState extends State<OrdersScreen> {
   FirebaseFirestore _firebaseFirestore = FirebaseFirestore.instance;
-
   String? userId = FirebaseAuth.instance.currentUser?.uid;
   bool isLoading = true;
   List<Map<String, dynamic>> clientsList = [];
@@ -26,15 +25,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   Future<void> getUserOrders() async {
     if (userId == null) {
-      print("User ID is null");
-      setState(() {
-        isLoading = false;
-      });
+      setState(() => isLoading = false);
       return;
     }
 
     try {
-      // Obtener la colección de clientes dentro de ventas
       QuerySnapshot<Map<String, dynamic>> clientsQuerySnapshot = await _firebaseFirestore
           .collection("ventas")
           .doc(userId)
@@ -51,7 +46,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
           "name": clientDoc.data()['name'] ?? 'Sin nombre',
         });
 
-        // Obtener la subcolección de productos para cada cliente
         QuerySnapshot<Map<String, dynamic>> productsQuerySnapshot = await _firebaseFirestore
             .collection("ventas")
             .doc(userId)
@@ -73,120 +67,101 @@ class _OrdersScreenState extends State<OrdersScreen> {
         }
       }
 
-      setState(() {
-        isLoading = false;
-      });
+      setState(() => isLoading = false);
     } catch (e) {
-      print("Error retrieving orders: $e");
-      setState(() {
-        isLoading = false;
-      });
+      setState(() => isLoading = false);
     }
   }
 
   void _updateOrderStatus(String clientId, String productId, String status) async {
     try {
-      if (status == 'rechazado') {
-        await _firebaseFirestore
-            .collection("ventas")
-            .doc(userId)
-            .collection("clientes")
-            .doc(clientId)
-            .collection("productos")
-            .doc(productId)
-            .delete();
-      } else {
-        // Actualiza el estatus en la colección "ventas"
-        await _firebaseFirestore
-            .collection("ventas")
-            .doc(userId)
-            .collection("clientes")
-            .doc(clientId)
-            .collection("productos")
-            .doc(productId)
-            .update({"status": status});
+      await _firebaseFirestore
+          .collection("ventas")
+          .doc(userId)
+          .collection("clientes")
+          .doc(clientId)
+          .collection("productos")
+          .doc(productId)
+          .update({"status": status});
 
-        // Obtener el idventa para buscar en las colecciones "orders" y "userOrders"
-        DocumentSnapshot<Map<String, dynamic>> productDoc = await _firebaseFirestore
-            .collection("ventas")
-            .doc(userId)
-            .collection("clientes")
-            .doc(clientId)
-            .collection("productos")
-            .doc(productId)
-            .get();
-
-        String idventa = productDoc.data()?["idventa"];
-
-        if (idventa != null && idventa.isNotEmpty) {
-          // Actualiza el estatus en la colección "orders"
-          QuerySnapshot<Map<String, dynamic>> ordersQuerySnapshot = await _firebaseFirestore
-              .collection("orders")
-              .where("idventa", isEqualTo: idventa)
-              .get();
-
-          for (var orderDoc in ordersQuerySnapshot.docs) {
-            await orderDoc.reference.update({"status": status});
-          }
-
-          // Actualiza el estatus en la colección "userOrders"
-          QuerySnapshot<Map<String, dynamic>> userOrdersQuerySnapshot = await _firebaseFirestore
-              .collection("userOrders")
-              .doc(clientId)
-              .collection("orders")
-              .where("idventa", isEqualTo: idventa)
-              .get();
-
-          for (var userOrderDoc in userOrdersQuerySnapshot.docs) {
-            await userOrderDoc.reference.update({"status": status});
-          }
-        }
-      }
-
-      // Refrescar la lista de productos después de la actualización
       await getUserOrders();
     } catch (e) {
       print("Error updating order status: $e");
     }
   }
 
+  void _deleteOrder(String clientId, String productId) async {
+    try {
+      await _firebaseFirestore
+          .collection("ventas")
+          .doc(userId)
+          .collection("clientes")
+          .doc(clientId)
+          .collection("productos")
+          .doc(productId)
+          .delete();
+
+      await getUserOrders();
+    } catch (e) {
+      print("Error deleting order: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Pedidos de Clientes'),
-      ),
+      appBar: AppBar(title: Text('Pedidos de Clientes',style: TextStyle(
+        fontSize: 24, // Tamaño más grande
+        fontWeight: FontWeight.bold, // Negrita para más impacto
+        color: Colors.black, // Color oscuro
+      ),)),
       body: isLoading
           ? Center(child: CircularProgressIndicator())
           : ListView.builder(
         itemCount: clientsList.length,
         itemBuilder: (context, index) {
           var client = clientsList[index];
-          return ExpansionTile(
-            title: Text('Cliente: ${client['name']}'),
-            onExpansionChanged: (expanded) {
-              setState(() {
-                selectedClientId = expanded ? client['clientId'] : null;
-              });
-            },
-            children: selectedClientId == client['clientId']
-                ? clientProductsMap[client['clientId']]!.map((product) {
-              return Card(
-                child: ListTile(
-                  title: Text('Producto: ${product['name']}'),
+          return Card(
+            margin: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            elevation: 5,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            color: Colors.white,
+            child: ExpansionTile(
+              title: Text(
+                'Cliente: ${client['name']}',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              children: clientProductsMap[client['clientId']]!.map((product) {
+                return ListTile(
+                  title: Text('${product['name']}'),
                   subtitle: Text('Cantidad: ${product['qty']}'),
-                  trailing: Text('Estado: ${product['status']}'),
-                  onTap: product['status'] == 'aceptado'
-                      ? null
-                      : () {
-                    _showOrderDialog(context, client['clientId'],
-                        product['productId'], product['status']);
-                  },
-                ),
-              );
-            }).toList()
-                : [],
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${product['status'].toUpperCase()}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: product['status'] == 'entregado' ? Colors.blue :
+                          product['status'] == 'aceptado' ? Colors.green : Colors.orange,
+                        ),
+                      ),
+                      if (product['status'] == 'pendiente' || product['status'] == 'aceptado')
+                        IconButton(
+                          icon: Icon(Icons.edit, color: Colors.blueAccent),
+                          onPressed: () => _showOrderDialog(
+                              context, client['clientId'], product['productId'], product['status']),
+                        ),
+                      if (product['status'] == 'entregado' || product['status'] == 'calificado')
+                        IconButton(
+                          icon: Icon(Icons.delete, color: Colors.redAccent),
+                          onPressed: () => _deleteOrder(client['clientId'], product['productId']),
+                        ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
           );
         },
       ),
@@ -198,10 +173,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Pedido de $productId'),
-          content: Text('¿Acepta este pedido?'),
+          title: Text('Actualizar pedido'),
+          content: Text('¿Cuál es el nuevo estado del pedido?'),
           actions: [
-            if (currentStatus != 'aceptado') ...[
+            if (currentStatus != 'aceptado')
               TextButton(
                 onPressed: () {
                   _updateOrderStatus(clientId, productId, 'rechazado');
@@ -209,6 +184,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 },
                 child: Text('Rechazar'),
               ),
+            if (currentStatus != 'entregado')
               ElevatedButton(
                 onPressed: () {
                   _updateOrderStatus(clientId, productId, 'aceptado');
@@ -216,7 +192,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 },
                 child: Text('Aceptar'),
               ),
-            ]
+            if (currentStatus == 'aceptado')
+              ElevatedButton(
+                onPressed: () {
+                  _updateOrderStatus(clientId, productId, 'entregado');
+                  Navigator.of(context).pop();
+                },
+                child: Text('Entregado'),
+              ),
           ],
         );
       },

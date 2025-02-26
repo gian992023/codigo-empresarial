@@ -5,5 +5,6 @@ class AssetsImages{
   final String otroImage = "$_imagesPath/otro.png";
 
   final String esteImage = "$_imagesPath/prueba.png";
-
+  final String logo = "$_imagesPath/logo.png";
+  final String compy = "$_imagesPath/Compy.png";
 }

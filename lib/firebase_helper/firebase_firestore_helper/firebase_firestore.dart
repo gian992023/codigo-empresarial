@@ -18,6 +18,7 @@ class FirebaseFirestoreHelper {
 
 
   //Funcion obtener categorias de productos
+
   Future<List<CategoryModel>> getCategories() async {
     try {
       String userId = FirebaseAuth.instance.currentUser!.uid;
@@ -318,8 +319,10 @@ class FirebaseFirestoreHelper {
       String name,
       String description,
       int qty,
-      double price,
-      ) async {
+      double price, {
+        bool isOnPromotion = false, // Nuevo parámetro opcional
+        double discountedPrice = 0.0, // Nuevo parámetro opcional
+      }) async {
     try {
       String userId = FirebaseAuth.instance.currentUser!.uid;
       QuerySnapshot querySnapshot = await _firebaseFirestore
@@ -362,6 +365,8 @@ class FirebaseFirestoreHelper {
           'description': description,
           'qty': qty,
           'price': price,
+          'isOnPromotion': isOnPromotion, // Nuevo campo
+          'discountedPrice': discountedPrice, // Nuevo campo
         });
       } else {
         print('No se encontró el producto con el id: $productId');
@@ -373,7 +378,6 @@ class FirebaseFirestoreHelper {
       throw e; // Puedes manejar el error de otra manera si lo deseas
     }
   }
-
   // Función para eliminar un producto de Firestore
   Future<void> deleteProduct(String productId) async {
     try {

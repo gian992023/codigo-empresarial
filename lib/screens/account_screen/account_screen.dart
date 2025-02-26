@@ -8,7 +8,10 @@ import 'package:conexion/widgets/primary_button/primary_button.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../maps/google_maps.dart';
 import '../../provider/app_provider.dart';
+import '../events/events_users.dart';
+import '../promotions/promociones_productos.dart';
 //Clase, creacion del estado de accountScreen
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -30,6 +33,8 @@ class _AccountScreenState extends State<AccountScreen> {
           child: Text(
             "Cuenta",
             style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
               color: Colors.black,
             ),
           ),
@@ -39,16 +44,15 @@ class _AccountScreenState extends State<AccountScreen> {
         children: [
           Expanded(
             child: Column(
-              children: [
-                appProvider.getUserInformation.image == null
-                    ? const Icon(
-                  Icons.person_outline,
-                  size: 120,
-                )
-                    : CircleAvatar(
-                    backgroundImage:
-                    NetworkImage(appProvider.getUserInformation.image!),
-                    radius: 70),
+              children: [ appProvider.getUserInformation.image == null
+                  ? const Icon(
+                Icons.person_outline,
+                size: 120,
+              )
+                  : CircleAvatar(
+                  backgroundImage:
+                  NetworkImage(appProvider.getUserInformation.image!),
+                  radius: 70),
                 Text(
                   appProvider.getUserInformation.name,
                   style: TextStyle(
@@ -58,6 +62,9 @@ class _AccountScreenState extends State<AccountScreen> {
                 ),
                 Text(
                   appProvider.getUserInformation.email,
+                ),
+                SizedBox(
+                  height: 8.9,
                 ),
 
                 SizedBox(
@@ -87,7 +94,7 @@ class _AccountScreenState extends State<AccountScreen> {
                           .push(widget: const OrdersScreen(), context: context);
                     },
                     leading: Icon(Icons.shopping_bag_outlined),
-                    title: Text("Tus pedidos"),
+                    title: Text("Ordenes"),
                   ),
                   ListTile(
                     onTap: () {
@@ -98,10 +105,16 @@ class _AccountScreenState extends State<AccountScreen> {
                     title: Text("Favoritos"),
                   ),
                   ListTile(
-                    onTap: () {},
-                    leading: Icon(Icons.info_outline),
-                    title: Text("Acerca de mi"),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const MapPage()),
+                      );
+                    },
+                    leading: const Icon(Icons.map),
+                    title: const Text("Ver Mapa"),
                   ),
+
                   ListTile(
                     onTap: () {
                       Routes.instance.push(
@@ -111,9 +124,21 @@ class _AccountScreenState extends State<AccountScreen> {
                     title: Text("Cambiar contraseña"),
                   ),
                   ListTile(
-                    onTap: () {},
-                    leading: Icon(Icons.support_outlined),
-                    title: Text("Soporte"),
+                    onTap: () {Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const CreateEventScreen()),
+                    );
+                    },
+                    leading: Icon(Icons.event),
+                    title: Text("Eventos"),
+                  ),ListTile(
+                    onTap: () {Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) =>  Promotions()),
+                    );
+                    },
+                    leading: Icon(Icons.discount),
+                    title: Text("Promociones"),
                   ),
                   ListTile(
                     onTap: () {

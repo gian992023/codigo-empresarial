@@ -156,7 +156,6 @@ class _RegisterProductState extends State<RegisterProduct> {
                       ? categoriesList[0]
                       : null;
                 }
-
                 return DropdownButtonFormField<String>(
                   value: selectedCategoryId,
                   onChanged: (String? newValue) {
@@ -250,14 +249,11 @@ class _RegisterProductState extends State<RegisterProduct> {
     int qty = int.tryParse(_qtyController.text) ?? 0;
     double price = double.tryParse(_priceController.text) ?? 0.0;
     String categoryId = selectedCategoryId ?? "Otra Categoría";
-
-
     // Subir la imagen al storage
     String imageUrl = await FirebaseStorageHelper().uploadProductImage(image!);
     // Crear el objeto CreateProductModel con la URL de la imagen
     CreateProductModel product = CreateProductModel(
     image: imageUrl,  // Establecer la URL de la imagen
-
     name: name,
     price: price,
     description: description,
@@ -265,5 +261,4 @@ class _RegisterProductState extends State<RegisterProduct> {
     );
     // Crear el producto en Firestore
     bool success = await FirebaseFirestoreHelper().createProductFirebase(product, context, categoryId);
-
   }}

@@ -12,6 +12,7 @@ class UserModel {
     required this.name,
     required this.email,
 
+
   });
 
   String id;

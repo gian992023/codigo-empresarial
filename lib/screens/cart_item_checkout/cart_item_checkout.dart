@@ -133,14 +133,12 @@ class _CartItemCheckoutState extends State<CartItemCheckout> {
                     });
                   }
                 } else {
-
                   int value = double.parse(appProvider.totalPriceBuyProductList().toString())
                       .round()
                       .toInt();
                   String totalPrice= (value *100).toString();
                    await StripeHelper.instance
                       .makePayment(totalPrice.toString(),context);
-
                 }
               },
             )

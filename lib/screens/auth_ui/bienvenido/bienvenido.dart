@@ -1,81 +1,80 @@
 import 'package:conexion/constants/asset_images.dart';
 import 'package:conexion/constants/routes.dart';
 import 'package:conexion/screens/auth_ui/sign_up/sign_up.dart';
-import 'package:conexion/widgets/top_titles/top_titles.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import '../../../widgets/primary_button/primary_button.dart';
 import '../login/login.dart';
-//Clase vista de bienvenida login
+import '../../../widgets/primary_button/primary_button.dart';
+
 class Bienvenido extends StatelessWidget {
   const Bienvenido({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const TopTitles(
-              subtitle: "Comprar cualquier producto desde cualquier lugar",
-              title: "Bienvenido",
-            ),
-            Center(
-              child: Image.asset(
-                AssetsImages.instance.otroImage,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Título
+              Text(
+                "Bienvenido a Compy",
+                style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CupertinoButton(
-                  onPressed: () {},
-                  padding: EdgeInsets.zero,
-                  child: const Icon(
-                    Icons.facebook,
-                    size: 35,
-                    color: Colors.blue,
+              const SizedBox(height: 18),
+              // Subtítulo
+              Text(
+                "Comprar cualquier producto desde cualquier lugar",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.grey[700],
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Logo
+              Image.asset(
+                AssetsImages.instance.compy,
+                width: 300,
+                height: 300,
+              ),
+              const SizedBox(height: 10),
+              // Botón de Google
+              GestureDetector(
+                onTap: () {},
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.grey[200],
                   ),
+                  padding: EdgeInsets.all(12),
+
                 ),
-                const SizedBox(
-                  width: 12,
-                ),
-                CupertinoButton(
-                  onPressed: () {},
-                  padding: EdgeInsets.zero,
-                  child: Image.asset(
-                    AssetsImages.instance.esteImage,
-                    scale: 18,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            PrimaryButton(
-              title: "Iniciar sesion",
-              onPressed: () {
-                Routes.instance.push(widget: const Login(), context: context);
-              },
-            ),
-            const SizedBox(
-              height: 18,
-            ),
-            PrimaryButton(
-              title: "Registrarse",
-              onPressed: () {
-                Routes.instance
-                    .push(widget: const SignUp(), context: context);
-              },
-            ),
-            const SizedBox(
-              height: 18,
-            ),
-          ],
+              ),
+              const SizedBox(height: 10),
+              // Botón de Iniciar Sesión
+              PrimaryButton(
+                title: "Iniciar sesión",
+                onPressed: () {
+                  Routes.instance.push(widget: const Login(), context: context);
+                },
+              ),
+              const SizedBox(height: 20),
+              // Botón de Registrarse
+              PrimaryButton(
+                title: "Registrarse",
+                onPressed: () {
+                  Routes.instance.push(widget: const SignUp(), context: context);
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

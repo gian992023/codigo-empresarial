@@ -1,8 +1,6 @@
 import 'package:conexion/models/category_model/category_model.dart';
 import 'package:conexion/widgets/top_titles/top_titles.dart';
-
 import 'package:flutter/material.dart';
-
 import '../../constants/routes.dart';
 import '../../firebase_helper/firebase_firestore_helper/firebase_firestore.dart';
 import '../../models/product_model/product_model.dart';
@@ -35,6 +33,7 @@ class _CategoryViewState extends State<CategoryView> {
 
     // Obtener los productos asociados a la categoría seleccionada
     productModelList = await FirebaseFirestoreHelper.instance.getCategoryViewProduct(widget.categoryModel.id);
+    productModelList.shuffle();
 
     setState(() {
       isLoading = false;
@@ -105,7 +104,12 @@ class _CategoryViewState extends State<CategoryView> {
                           singleProduct.image,
                           height: 100,
                           width: 100,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(Icons.broken_image, size: 100, color: Colors.grey);
+                          },
                         ),
+
                         const SizedBox(height: 12,),
                         Text(
                           singleProduct.name,
