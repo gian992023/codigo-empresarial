@@ -57,12 +57,27 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
         for (var productDoc in productsQuerySnapshot.docs) {
           Map<String, dynamic> productData = productDoc.data();
+
+          // Obtener el método de pago desde userOrders
+          String? paymentMethod;
+          QuerySnapshot<Map<String, dynamic>> paymentQuerySnapshot = await _firebaseFirestore
+              .collection("userOrders")
+              .doc(clientId)
+              .collection("orders")
+              .where("idventa", isEqualTo: productData['idventa'])
+              .get();
+
+          if (paymentQuerySnapshot.docs.isNotEmpty) {
+            paymentMethod = paymentQuerySnapshot.docs.first.data()['payment'] ?? 'Desconocido';
+          }
+
           clientProductsMap[clientId]!.add({
             "productId": productDoc.id,
             "name": productData['product']['name'],
             "qty": productData['product']['qty'],
             "status": productData['status'],
-            "idventa": productData['idventa'], // Asegúrate de que este campo exista en Firestore
+            "idventa": productData['idventa'],
+            "payment": paymentMethod,
           });
         }
       }
@@ -78,7 +93,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
     try {
       WriteBatch batch = _firebaseFirestore.batch();
 
-      // Actualizar estado en `ventas`
       QuerySnapshot ventasSnapshot = await _firebaseFirestore
           .collection("ventas")
           .doc(userId)
@@ -92,11 +106,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
         batch.update(doc.reference, {"status": status});
       }
 
-      // Actualizar estado en `userOrders`
       QuerySnapshot userOrdersSnapshot = await _firebaseFirestore
           .collection("userOrders")
-          .doc(clientId) // Aquí se usa el clientId
-          .collection("orders") // Luego se accede a la subcolección "orders"
+          .doc(clientId)
+          .collection("orders")
           .where("idventa", isEqualTo: idVenta)
           .get();
 
@@ -113,6 +126,43 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
   }
 
+  void _deleteOrder(String clientId, String idVenta) async {
+    try {
+      WriteBatch batch = _firebaseFirestore.batch();
+
+      QuerySnapshot ventasSnapshot = await _firebaseFirestore
+          .collection("ventas")
+          .doc(userId)
+          .collection("clientes")
+          .doc(clientId)
+          .collection("productos")
+          .where("idventa", isEqualTo: idVenta)
+          .get();
+
+      for (var doc in ventasSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      QuerySnapshot userOrdersSnapshot = await _firebaseFirestore
+          .collection("userOrders")
+          .doc(clientId)
+          .collection("orders")
+          .where("idventa", isEqualTo: idVenta)
+          .get();
+
+      for (var doc in userOrdersSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      await batch.commit();
+      await getUserOrders();
+
+      print("Orden eliminada correctamente.");
+    } catch (e) {
+      print("Error al eliminar la orden: $e");
+    }
+  }
+
   void _showOrderDialog(BuildContext context, String clientId, String productId, String idVenta, String currentStatus) {
     showDialog(
       context: context,
@@ -121,15 +171,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
           title: Text('Actualizar pedido'),
           content: Text('¿Cuál es el nuevo estado del pedido?'),
           actions: [
-            if (currentStatus != 'aceptado')
+            if (currentStatus == 'pendiente') ...[
               TextButton(
                 onPressed: () {
-                  _updateOrderStatus(clientId, productId, idVenta, 'rechazado');
+                  _deleteOrder(clientId, idVenta);
                   Navigator.of(context).pop();
                 },
                 child: Text('Rechazar'),
               ),
-            if (currentStatus != 'entregado')
               ElevatedButton(
                 onPressed: () {
                   _updateOrderStatus(clientId, productId, idVenta, 'aceptado');
@@ -137,7 +186,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 },
                 child: Text('Aceptar'),
               ),
-            if (currentStatus == 'aceptado')
+            ],
+            if (currentStatus == 'aceptado') ...[
+              TextButton(
+                onPressed: () {
+                  _deleteOrder(clientId, idVenta);
+                  Navigator.of(context).pop();
+                },
+                child: Text('Cancelado'),
+              ),
               ElevatedButton(
                 onPressed: () {
                   _updateOrderStatus(clientId, productId, idVenta, 'entregado');
@@ -145,6 +202,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 },
                 child: Text('Entregado'),
               ),
+            ],
+            IconButton(
+              icon: Icon(Icons.close),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
           ],
         );
       },
@@ -176,7 +240,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
               children: clientProductsMap[client['clientId']]!.map((product) {
                 return ListTile(
                   title: Text('${product['name']}'),
-                  subtitle: Text('Cantidad: ${product['qty']}'),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Cantidad: ${product['qty']}'),
+                      Text('Tipo de pago: ${product['payment'] ?? 'No especificado'}'),
+                    ],
+                  ),
                   trailing: Text(
                     '${product['status'].toUpperCase()}',
                     style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
