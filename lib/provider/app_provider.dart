@@ -9,11 +9,14 @@ import 'package:conexion/firebase_helper/firebase_storage_helper/firebase_storag
 import 'package:conexion/models/product_model/product_model.dart';
 import 'package:conexion/models/user_model/user_model.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:conexion/models/service_model/service_model.dart';
 //Clase proveedor de informacion entre firestore y vista app
 class AppProvider with ChangeNotifier {
   //CARTA DE CARRITO//
   final List<ProductModel> _cartProductList = [];
   final List<ProductModel> _buyProductList = [];
+  final List<ServiceModel> _cartServiceList = [];
+  final List<ServiceModel> _buyServiceList = [];
   UserModel? _userModel;
 
   UserModel get getUserInformation => _userModel!;
@@ -29,10 +32,23 @@ class AppProvider with ChangeNotifier {
   }
 
   List<ProductModel> get getCartProductList => _cartProductList;
+  // Gestión de servicios en el carrito
+  void addCartService(ServiceModel serviceModel) {
+    _cartServiceList.add(serviceModel);
+    notifyListeners();
+  }
+
+  void removeCartService(ServiceModel serviceModel) {
+    _cartServiceList.remove(serviceModel);
+    notifyListeners();
+  }
+
+  List<ServiceModel> get getCartServiceList => _cartServiceList;
 
   //// Favorito////
 
   final List<ProductModel> _favouriteProductList = [];
+  final List<ServiceModel> _favouriteServiceList = [];
 
   void addFavouriteProduct(ProductModel productModel) {
     _favouriteProductList.add(productModel);
@@ -45,6 +61,19 @@ class AppProvider with ChangeNotifier {
   }
 
   List<ProductModel> get getFavouriteProductList => _favouriteProductList;
+
+  void addFavouriteService(ServiceModel serviceModel) {
+    _favouriteServiceList.add(serviceModel);
+    notifyListeners();
+  }
+
+  void removeFavouriteService(ServiceModel serviceModel) {
+    _favouriteServiceList.remove(serviceModel);
+    notifyListeners();
+  }
+
+  List<ServiceModel> get getFavouriteServiceList => _favouriteServiceList;
+
 
   ////// INFORMACION DE USUARIO /////
   void getUserInfoFirebase() async {
@@ -104,10 +133,14 @@ class AppProvider with ChangeNotifier {
     notifyListeners();
   }
 
-////Vender producto
+////Gestion de compraas
 
   void addBuyProduct(ProductModel model) {
     _buyProductList.add(model);
+    notifyListeners();
+  }
+  void addBuyService(ServiceModel model) {
+    _buyServiceList.add(model);
     notifyListeners();
   }
 
@@ -127,4 +160,5 @@ class AppProvider with ChangeNotifier {
   }
 
   List<ProductModel> get getBuyProductList => _buyProductList;
+  List<ServiceModel> get getBuyServiceList => _buyServiceList;
 }

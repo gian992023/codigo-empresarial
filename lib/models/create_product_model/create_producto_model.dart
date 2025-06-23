@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:conexion/models/product_model/product_model.dart';
+
 CreateProductModel userModelFromJson(String str) =>
     CreateProductModel.fromJson(json.decode(str));
 
@@ -11,8 +11,7 @@ class CreateProductModel {
     required this.name,
     required this.price,
     required this.description,
-    //   required this.state,
-  //required this.categories,
+
 
     this.qty});
 
@@ -20,8 +19,7 @@ class CreateProductModel {
   String name;
   String image;
   String description;
-//  bool state;
-  //String categories;
+
 
   double price;
   int? qty;
@@ -32,8 +30,7 @@ class CreateProductModel {
         name: json["name"],
         image: json["image"],
         description: json["description"],
-        //  state: json["state"],
-          //categories: json["categories"],
+
 
 
 
@@ -48,8 +45,7 @@ class CreateProductModel {
         "image": image,
         "description": description,
         "price": price,
-        //  "state":state,
-        //"categories":categories,
+
 
 
         "qty": qty,
@@ -65,8 +61,7 @@ class CreateProductModel {
         name: name,
         price: price,
         description: description,
-        //  state:state,
-        //categories:categories,
+
 
         qty: qty??this.qty,
 

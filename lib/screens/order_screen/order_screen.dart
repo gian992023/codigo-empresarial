@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -10,11 +12,18 @@ class OrdersScreen extends StatefulWidget {
 }
 
 class _OrdersScreenState extends State<OrdersScreen> {
-  FirebaseFirestore _firebaseFirestore = FirebaseFirestore.instance;
-  String? userId = FirebaseAuth.instance.currentUser?.uid;
+  final FirebaseFirestore _firebaseFirestore = FirebaseFirestore.instance;
+  final String? userId = FirebaseAuth.instance.currentUser?.uid;
   bool isLoading = true;
   List<Map<String, dynamic>> clientsList = [];
-  Map<String, List<Map<String, dynamic>>> clientProductsMap = {};
+  Map<String, List<Map<String, dynamic>>> clientOrdersMap = {};
+
+  // Paleta de colores
+  static const Color primaryColor = Color(0xFFE3D5C5);
+  static const Color accentColor = Color(0xFF6B4F4F);
+  static const Color textColor = Color(0xFF4A3A3A);
+  static const Color backgroundCard = Color(0xFFF8F4EF);
+  static const Color borderColor = Color(0xFFD3C0B2);
 
   @override
   void initState() {
@@ -27,24 +36,24 @@ class _OrdersScreenState extends State<OrdersScreen> {
       setState(() => isLoading = false);
       return;
     }
-
     try {
       QuerySnapshot<Map<String, dynamic>> clientsQuerySnapshot = await _firebaseFirestore
           .collection("ventas")
           .doc(userId)
           .collection("clientes")
           .get();
-
       clientsList.clear();
-      clientProductsMap.clear();
-
+      clientOrdersMap.clear();
       for (var clientDoc in clientsQuerySnapshot.docs) {
         String clientId = clientDoc.id;
+        Map<String, dynamic> clientData = clientDoc.data();
         clientsList.add({
           "clientId": clientId,
-          "name": clientDoc.data()['name'] ?? 'Sin nombre',
+          "name": clientData['name'] ?? 'Sin nombre',
+          "address": clientData['address'] ?? 'Sin dirección',
         });
-
+        clientOrdersMap[clientId] = [];
+        // Productos
         QuerySnapshot<Map<String, dynamic>> productsQuerySnapshot = await _firebaseFirestore
             .collection("ventas")
             .doc(userId)
@@ -53,13 +62,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
             .collection("productos")
             .get();
 
-        clientProductsMap[clientId] = [];
-
         for (var productDoc in productsQuerySnapshot.docs) {
           Map<String, dynamic> productData = productDoc.data();
-
-          // Obtener el método de pago desde userOrders
           String? paymentMethod;
+
           QuerySnapshot<Map<String, dynamic>> paymentQuerySnapshot = await _firebaseFirestore
               .collection("userOrders")
               .doc(clientId)
@@ -71,8 +77,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
             paymentMethod = paymentQuerySnapshot.docs.first.data()['payment'] ?? 'Desconocido';
           }
 
-          clientProductsMap[clientId]!.add({
-            "productId": productDoc.id,
+          clientOrdersMap[clientId]!.add({
+            "type": "product",
+            "docId": productDoc.id,
             "name": productData['product']['name'],
             "qty": productData['product']['qty'],
             "status": productData['status'],
@@ -80,25 +87,61 @@ class _OrdersScreenState extends State<OrdersScreen> {
             "payment": paymentMethod,
           });
         }
-      }
+        // Servicios
+        QuerySnapshot<Map<String, dynamic>> servicesQuerySnapshot = await _firebaseFirestore
+            .collection("ventas")
+            .doc(userId)
+            .collection("clientes")
+            .doc(clientId)
+            .collection("servicios")
+            .get();
+        for (var serviceDoc in servicesQuerySnapshot.docs) {
+          Map<String, dynamic> serviceData = serviceDoc.data();
+          String? paymentMethod;
 
+          QuerySnapshot<Map<String, dynamic>> paymentQuerySnapshot = await _firebaseFirestore
+              .collection("userOrders")
+              .doc(clientId)
+              .collection("orders")
+          // Para servicios en userOrders usamos el campo "idsolicitud"
+              .where("idsolicitud", isEqualTo: serviceData['idventa'])
+              .get();
+
+          paymentMethod = paymentQuerySnapshot.docs.isNotEmpty
+              ? paymentQuerySnapshot.docs.first.data()['payment']
+              : "Solicitar servicio";
+
+          clientOrdersMap[clientId]!.add({
+            "type": "service",
+            "docId": serviceDoc.id,
+            "name": serviceData['service']['name'],
+            "qty": 1,
+            "status": serviceData['status'],
+            "idventa": serviceData['idventa'],
+            "payment": paymentMethod,
+          });
+        }
+      }
       setState(() => isLoading = false);
     } catch (e) {
       setState(() => isLoading = false);
-      print("Error al obtener pedidos: $e");
+      print("Error: $e");
     }
   }
 
-  void _updateOrderStatus(String clientId, String productId, String idVenta, String status) async {
+  // Ahora manejamos correctamente ambos casos
+  void _updateOrderStatus(String clientId, String idVenta, String status, String type) async {
     try {
       WriteBatch batch = _firebaseFirestore.batch();
+      String subcollection = (type == "product") ? "productos" : "servicios";
 
+      // Actualizar en ventas
       QuerySnapshot ventasSnapshot = await _firebaseFirestore
           .collection("ventas")
           .doc(userId)
           .collection("clientes")
           .doc(clientId)
-          .collection("productos")
+          .collection(subcollection)
           .where("idventa", isEqualTo: idVenta)
           .get();
 
@@ -106,11 +149,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
         batch.update(doc.reference, {"status": status});
       }
 
+      // Actualizar en userOrders, usando el campo adecuado según tipo
+      String orderField = (type == "product") ? "idventa" : "idsolicitud";
       QuerySnapshot userOrdersSnapshot = await _firebaseFirestore
           .collection("userOrders")
           .doc(clientId)
           .collection("orders")
-          .where("idventa", isEqualTo: idVenta)
+          .where(orderField, isEqualTo: idVenta)
           .get();
 
       for (var doc in userOrdersSnapshot.docs) {
@@ -119,23 +164,23 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
       await batch.commit();
       await getUserOrders();
-
-      print("Estado actualizado en ambas rutas correctamente.");
     } catch (e) {
-      print("Error al actualizar el estado en ambas rutas: $e");
+      print("Error actualizando estado: $e");
     }
   }
 
-  void _deleteOrder(String clientId, String idVenta) async {
+  void _deleteOrder(String clientId, String idVenta, String type) async {
     try {
       WriteBatch batch = _firebaseFirestore.batch();
+      String subcollection = (type == "product") ? "productos" : "servicios";
 
+      // Eliminar en ventas
       QuerySnapshot ventasSnapshot = await _firebaseFirestore
           .collection("ventas")
           .doc(userId)
           .collection("clientes")
           .doc(clientId)
-          .collection("productos")
+          .collection(subcollection)
           .where("idventa", isEqualTo: idVenta)
           .get();
 
@@ -143,11 +188,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
         batch.delete(doc.reference);
       }
 
+      // Eliminar en userOrders, usando el campo adecuado según tipo
+      String orderField = (type == "product") ? "idventa" : "idsolicitud";
       QuerySnapshot userOrdersSnapshot = await _firebaseFirestore
           .collection("userOrders")
           .doc(clientId)
           .collection("orders")
-          .where("idventa", isEqualTo: idVenta)
+          .where(orderField, isEqualTo: idVenta)
           .get();
 
       for (var doc in userOrdersSnapshot.docs) {
@@ -156,107 +203,248 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
       await batch.commit();
       await getUserOrders();
-
-      print("Orden eliminada correctamente.");
     } catch (e) {
-      print("Error al eliminar la orden: $e");
+      print("Error eliminando orden: $e");
     }
   }
-
-  void _showOrderDialog(BuildContext context, String clientId, String productId, String idVenta, String currentStatus) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Actualizar pedido'),
-          content: Text('¿Cuál es el nuevo estado del pedido?'),
-          actions: [
-            if (currentStatus == 'pendiente') ...[
-              TextButton(
-                onPressed: () {
-                  _deleteOrder(clientId, idVenta);
-                  Navigator.of(context).pop();
-                },
-                child: Text('Rechazar'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  _updateOrderStatus(clientId, productId, idVenta, 'aceptado');
-                  Navigator.of(context).pop();
-                },
-                child: Text('Aceptar'),
-              ),
-            ],
-            if (currentStatus == 'aceptado') ...[
-              TextButton(
-                onPressed: () {
-                  _deleteOrder(clientId, idVenta);
-                  Navigator.of(context).pop();
-                },
-                child: Text('Cancelado'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  _updateOrderStatus(clientId, productId, idVenta, 'entregado');
-                  Navigator.of(context).pop();
-                },
-                child: Text('Entregado'),
-              ),
-            ],
-            IconButton(
-              icon: Icon(Icons.close),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Pedidos de Clientes', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black)),
+        backgroundColor: primaryColor,
+        title: Text(
+          'Pedidos de Clientes',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w600,
+            color: textColor,
+            shadows: [
+              Shadow(
+                color: Colors.brown.withOpacity(0.1),
+                blurRadius: 4,
+                offset: Offset(1, 1),
+              ),
+            ],
+          ),
+        ),
+        iconTheme: IconThemeData(color: accentColor),
       ),
+      backgroundColor: Color(0xFFF5F0E6),
       body: isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: accentColor))
           : ListView.builder(
         itemCount: clientsList.length,
         itemBuilder: (context, index) {
           var client = clientsList[index];
-          return Card(
-            margin: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            elevation: 5,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            color: Colors.white,
-            child: ExpansionTile(
-              title: Text(
-                'Cliente: ${client['name']}',
-                style: TextStyle(fontWeight: FontWeight.bold),
+          String clientId = client['clientId'];
+          String clientName = client['name'];
+          String addressClient = client['address'];
+
+          return Container(
+            margin: EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.brown.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Card(
+              color: backgroundCard,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: borderColor, width: 1.5),
               ),
-              children: clientProductsMap[client['clientId']]!.map((product) {
-                return ListTile(
-                  title: Text('${product['name']}'),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Cantidad: ${product['qty']}'),
-                      Text('Tipo de pago: ${product['payment'] ?? 'No especificado'}'),
-                    ],
+              elevation: 0,
+              child: ExpansionTile(
+                leading: Icon(Icons.person, color: accentColor),
+                title: Text(
+                  clientName,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                    fontSize: 16,
                   ),
-                  trailing: Text(
-                    '${product['status'].toUpperCase()}',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
+                ),
+                subtitle: Text(
+                  addressClient,
+                  style: TextStyle(
+                    color: textColor.withOpacity(0.7),
+                    fontSize: 14,
                   ),
-                  onTap: () => _showOrderDialog(context, client['clientId'], product['productId'], product['idventa'], product['status']),
-                );
-              }).toList(),
+                ),
+                childrenPadding: EdgeInsets.symmetric(horizontal: 15),
+                children: clientOrdersMap[clientId]!.map((item) {
+                  String type = item["type"];
+                  String name = item["name"];
+                  int qty = item["qty"] ?? 1;
+                  String status = item["status"];
+                  String idVenta = item["idventa"];
+                  String paymentMethod = item["payment"] ?? 'No especificado';
+
+                  return Container(
+                    margin: EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: borderColor.withOpacity(0.3)),
+                      ),
+                    ),
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        name,
+                        style: TextStyle(
+                          color: textColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Cantidad: $qty',
+                            style: TextStyle(color: textColor.withOpacity(0.8)),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Método: $paymentMethod',
+                            style: TextStyle(
+                              color: accentColor,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ),
+                      trailing: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(status),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          status.toUpperCase(),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      onTap: () => _showOrderDialog(
+                        context,
+                        clientId: clientId,
+                        idVenta: idVenta,
+                        currentStatus: status,
+                        type: type,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
             ),
           );
         },
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pendiente':
+        return Colors.orange;
+      case 'aceptado':
+        return Colors.green;
+      case 'entregado':
+        return Color(0xFF4A3A3A);
+      case 'rechazado':
+        return Colors.red;
+      default:
+        return accentColor;
+    }
+  }
+
+  void _showOrderDialog(
+      BuildContext context, {
+        required String clientId,
+        required String idVenta,
+        required String currentStatus,
+        required String type,
+      }) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: backgroundCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: borderColor, width: 1.5),
+        ),
+        title: Text(
+          'Actualizar pedido',
+          style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          '¿Cuál es el nuevo estado del pedido?',
+          style: TextStyle(color: textColor.withOpacity(0.8)),
+        ),
+        actions: [
+          if (currentStatus == 'pendiente') ...[
+            TextButton(
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.red.shade100,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                _deleteOrder(clientId, idVenta, type);
+                Navigator.pop(context);
+              },
+              child: Text('Rechazar', style: TextStyle(color: Colors.red.shade800)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                _updateOrderStatus(clientId, idVenta, 'aceptado', type);
+                Navigator.pop(context);
+              },
+              child: Text('Aceptar', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+          if (currentStatus == 'aceptado') ...[
+            TextButton(
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.orange.shade100,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                _deleteOrder(clientId, idVenta, type);
+                Navigator.pop(context);
+              },
+              child: Text('Cancelar', style: TextStyle(color: Colors.orange.shade800)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF4A3A3A),
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                _updateOrderStatus(clientId, idVenta, 'entregado', type);
+                Navigator.pop(context);
+              },
+              child: Text('Entregado', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+          IconButton(
+            icon: Icon(Icons.close, color: accentColor),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
       ),
     );
   }

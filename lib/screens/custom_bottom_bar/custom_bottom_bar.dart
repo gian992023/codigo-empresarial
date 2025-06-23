@@ -1,10 +1,11 @@
 import 'package:conexion/screens/account_screen/account_screen.dart';
 import 'package:conexion/screens/cart_screen/cart_screen.dart';
-import 'package:conexion/screens/favourite_screen/favourite_screen.dart';
+import 'package:conexion/screens/inventory_screen/inventory_screen.dart';
 import 'package:conexion/screens/home/home.dart';
 import 'package:flutter/material.dart';
 import 'package:persistent_bottom_nav_bar/persistent_tab_view.dart';
 
+import '../create_asset/create_assets.dart';
 import '../order_screen/order_screen.dart';
 import '../register_products/register_products.dart';
 
@@ -23,7 +24,7 @@ class _CustomBottomBarState extends State<CustomBottomBar> {
 
   List<Widget> _buildScreens() => [
         const Home(),
-        const RegisterProduct(),
+        const RegisterSelection(),
         const OrdersScreen(),
         const AccountScreen(),
       ];
@@ -37,9 +38,9 @@ class _CustomBottomBarState extends State<CustomBottomBar> {
             inactiveColorPrimary: Colors.white,
             ),
         PersistentBottomNavBarItem(
-          icon: const Icon(Icons.shopping_cart),
-          inactiveIcon:const Icon(Icons.shopping_cart_outlined) ,
-          title: "Productos",
+          icon: const Icon(Icons.inventory_2),
+          inactiveIcon:const Icon(Icons.inventory_2_outlined) ,
+          title: "Registro",
           activeColorPrimary: Colors.white,
           inactiveColorPrimary: Colors.white,
         ),

@@ -1,24 +1,23 @@
 import 'dart:io';
 import 'package:conexion/firebase_helper/firebase_firestore_helper/firebase_firestore.dart';
-import 'package:conexion/models/create_product_model/create_producto_model.dart';
-import 'package:conexion/screens/home/home.dart';
+import 'package:conexion/models/create_service_model/create_service_model.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../constants/routes.dart';
 import '../../constants/constants.dart';
 import '../../firebase_helper/firebase_storage_helper/firebase_storage_helper.dart';
 import '../../models/category_model/category_model.dart';
+import '../home/home.dart';
 
-class RegisterProduct extends StatefulWidget {
-  const RegisterProduct({super.key});
+class RegisterService extends StatefulWidget {
+  const RegisterService({super.key});
 
   @override
-  State<RegisterProduct> createState() => _RegisterProductState();
+  State<RegisterService> createState() => _RegisterServiceState();
 }
 
-class _RegisterProductState extends State<RegisterProduct> {
+class _RegisterServiceState extends State<RegisterService> {
   String? selectedCategoryId;
   CategoryModel? selectedCategory;
   late Future<List<CategoryModel>> categories;
@@ -26,8 +25,8 @@ class _RegisterProductState extends State<RegisterProduct> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController =
   TextEditingController();
-  final TextEditingController _qtyController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
+  bool isAvailable = true;
 
   Future<List<CategoryModel>> getCategories() async {
     try {
@@ -56,7 +55,6 @@ class _RegisterProductState extends State<RegisterProduct> {
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
-    _qtyController.dispose();
     _priceController.dispose();
     super.dispose();
   }
@@ -69,7 +67,7 @@ class _RegisterProductState extends State<RegisterProduct> {
         elevation: 4,
         centerTitle: true,
         title: Text(
-          "Registro de Productos",
+          "Registro de Servicios",
           style: TextStyle(
             color: const Color(0xFF4A3A3A),
             fontWeight: FontWeight.w600,
@@ -79,7 +77,7 @@ class _RegisterProductState extends State<RegisterProduct> {
                 color: Colors.brown.withOpacity(0.1),
                 blurRadius: 4,
                 offset: const Offset(1, 1),
-              ),
+              )
             ],
           ),
         ),
@@ -87,7 +85,7 @@ class _RegisterProductState extends State<RegisterProduct> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          // Evita que el botón quede oculto detrás de la barra de navegación inferior
+          // Asegura que el botón no quede tapado por la barra inferior
           padding: const EdgeInsets.only(bottom: 100),
           child: Padding(
             padding: const EdgeInsets.all(20.0),
@@ -136,7 +134,8 @@ class _RegisterProductState extends State<RegisterProduct> {
                             alignment: Alignment.center,
                             child: Icon(
                               Icons.camera_alt,
-                              color: const Color(0xFF6B4F4F).withOpacity(0.7),
+                              color:
+                              const Color(0xFF6B4F4F).withOpacity(0.7),
                               size: 50,
                             ),
                           ),
@@ -146,26 +145,24 @@ class _RegisterProductState extends State<RegisterProduct> {
                   ),
                 ),
                 const SizedBox(height: 25),
-                _buildInputField(
-                  controller: _nameController,
-                  label: 'Nombre del Producto',
-                  icon: Icons.shopping_cart,
-                ),
-                const SizedBox(height: 20),
                 FutureBuilder<List<CategoryModel>>(
                   future: getCategories(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return Center(
-                          child: CircularProgressIndicator(
-                              color: const Color(0xFF6B4F4F)));
+                        child: CircularProgressIndicator(
+                            color: const Color(0xFF6B4F4F)),
+                      );
                     } else if (snapshot.hasError) {
-                      return Text('Error: ${snapshot.error}',
-                          style: TextStyle(color: const Color(0xFF6B4F4F)));
-                    } else if (!snapshot.hasData ||
-                        snapshot.data!.isEmpty) {
-                      return Text('No hay categorías disponibles',
-                          style: TextStyle(color: const Color(0xFF6B4F4F)));
+                      return Text(
+                        'Error: ${snapshot.error}',
+                        style: TextStyle(color: const Color(0xFF6B4F4F)),
+                      );
+                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return Text(
+                        'No hay categorías disponibles',
+                        style: TextStyle(color: const Color(0xFF6B4F4F)),
+                      );
                     }
                     List<CategoryModel> categoriesList = snapshot.data!;
                     return DropdownButtonFormField<String>(
@@ -176,8 +173,8 @@ class _RegisterProductState extends State<RegisterProduct> {
                         return DropdownMenuItem<String>(
                           value: category.id,
                           child: Text(category.name,
-                              style:
-                              TextStyle(color: const Color(0xFF4A3A3A))),
+                              style: TextStyle(
+                                  color: const Color(0xFF4A3A3A))),
                         );
                       }).toList(),
                       decoration: InputDecoration(
@@ -196,7 +193,8 @@ class _RegisterProductState extends State<RegisterProduct> {
                         ),
                         filled: true,
                         fillColor: const Color(0xFFF8F4EF),
-                        labelStyle: TextStyle(color: const Color(0xFF6B4F4F)),
+                        labelStyle:
+                        TextStyle(color: const Color(0xFF6B4F4F)),
                       ),
                       dropdownColor: const Color(0xFFF8F4EF),
                       style: TextStyle(color: const Color(0xFF4A3A3A)),
@@ -205,10 +203,9 @@ class _RegisterProductState extends State<RegisterProduct> {
                 ),
                 const SizedBox(height: 20),
                 _buildInputField(
-                  controller: _qtyController,
-                  label: 'Cantidad',
-                  icon: Icons.format_list_numbered,
-                  inputType: TextInputType.number,
+                  controller: _nameController,
+                  label: 'Nombre del Servicio',
+                  icon: Icons.work,
                 ),
                 const SizedBox(height: 20),
                 _buildInputField(
@@ -222,22 +219,37 @@ class _RegisterProductState extends State<RegisterProduct> {
                   controller: _priceController,
                   label: 'Precio',
                   icon: Icons.attach_money,
-                  inputType:
-                  TextInputType.numberWithOptions(decimal: true),
+                  inputType: TextInputType.numberWithOptions(decimal: true),
                 ),
-                const SizedBox(height: 30),
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 40),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildActionButton(
-                        text: 'Agregar Producto',
-                        color: const Color(0xFF8F6645),
-                        icon: Icons.add_circle_outline,
-                        onPressed: _submitForm,
+                      Text(
+                        "Disponibilidad:",
+                        style: TextStyle(
+                          color: const Color(0xFF4A3A3A),
+                          fontSize: 16,
+                        ),
+                      ),
+                      Switch(
+                        value: isAvailable,
+                        activeColor: const Color(0xFF6B4F4F),
+                        onChanged: (value) =>
+                            setState(() => isAvailable = value),
                       ),
                     ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 40),
+                  child: Center(
+                    child: _buildActionButton(
+                      text: 'Registrar Servicio',
+                      color: const Color(0xFF8F6645),
+                      icon: Icons.app_registration_rounded,
+                      onPressed: _submitForm,
+                    ),
                   ),
                 ),
               ],
@@ -311,44 +323,44 @@ class _RegisterProductState extends State<RegisterProduct> {
       String imageUrl =
       await FirebaseStorageHelper().uploadProductImage(image!);
 
-      // Crear modelo de producto
-      CreateProductModel product = CreateProductModel(
+      // Crear modelo de servicio
+      CreateServiceModel service = CreateServiceModel(
         image: imageUrl,
         name: _nameController.text,
         price: double.tryParse(_priceController.text) ?? 0.0,
         description: _descriptionController.text,
-        qty: int.tryParse(_qtyController.text) ?? 0,
+        available: isAvailable,
       );
 
-      // Guardar en Firestore (ahora con la lógica de "guardar name" bajo userProducts/{userId})
+      // Guardar en Firestore (ahora con la lógica de “name” bajo userServices/{userId})
       bool success = await FirebaseFirestoreHelper()
-          .createProductFirebase(
-          product, context, selectedCategoryId ?? "Otra Categoría");
+          .createServiceFirebase(
+          service, context, selectedCategoryId ?? "Otra Categoría");
 
-      // Antes de navegar, cerrar siempre el diálogo de carga
+      // Cerrar diálogo de carga antes de navegar
       Navigator.of(context).pop();
 
       if (success) {
-        showMessage("Producto agregado exitosamente");
+        showMessage("Servicio agregado exitosamente");
 
         // Limpiar campos
         setState(() {
           image = null;
           _nameController.clear();
           _descriptionController.clear();
-          _qtyController.clear();
           _priceController.clear();
+          isAvailable = true;
           selectedCategoryId = null;
         });
 
-        // Redirigir a Home y actualizar la vista
+        // Redirigir a Home y forzar recarga
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const Home()),
         );
       }
     } catch (e) {
-      // Si ocurre un error, cerrar el diálogo de carga
+      // Cerrar diálogo de carga en caso de error
       Navigator.of(context).pop();
       showMessage("Error: ${e.toString()}");
     }

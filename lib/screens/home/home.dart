@@ -4,13 +4,14 @@ import 'package:conexion/models/category_model/category_model.dart';
 import 'package:conexion/provider/app_provider.dart';
 import 'package:conexion/screens/category_view/category_view.dart';
 import 'package:conexion/screens/product_detail/product_details.dart';
-import 'package:conexion/widgets/top_titles/top_titles.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../../constants/asset_images.dart';
 import '../../models/product_model/product_model.dart';
+import '../../models/service_model/service_model.dart';
+import '../create_asset/create_assets.dart';
+import '../service_details/service_details.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -22,356 +23,308 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   List<CategoryModel> categoriesList = [];
   List<ProductModel> productModelList = [];
+  List<ServiceModel> serviceModelList = [];
   bool isLoading = false;
 
   @override
   void initState() {
+    super.initState();
+    // Obtenemos la info básica del usuario
     AppProvider appProvider = Provider.of<AppProvider>(context, listen: false);
     appProvider.getUserInfoFirebase();
+
+    // Cargamos categorías + productos + servicios desde Firestore
     getCategoryList();
-    super.initState();
   }
+
 
   void getCategoryList() async {
     setState(() {
       isLoading = true;
     });
+
+
     FirebaseFirestoreHelper.instance.updateTokenFromFirebase();
+
     categoriesList = await FirebaseFirestoreHelper.instance.getCategories();
+
+    // Traemos productos y servicios.
     productModelList = await FirebaseFirestoreHelper.instance.getUserProducts();
+    serviceModelList = await FirebaseFirestoreHelper.instance.getUserServices();
+
+
     productModelList.shuffle();
+    serviceModelList.shuffle();
+
     setState(() {
       isLoading = false;
     });
   }
 
   TextEditingController search = TextEditingController();
-  List<ProductModel> searchList = [];
+  List<ProductModel> searchProductList = [];
+  List<ServiceModel> searchServiceList = [];
 
-  void searchProducts(String value) {
-    searchList = productModelList
+  /// Cada vez que el usuario escribe en el TextField de búsqueda,
+  /// filtramos las listas completas de productos/servicios y luego
+  /// “setState” para que se refresque la vista.
+  void searchItems(String value) {
+    searchProductList = productModelList
         .where((element) =>
-            element.name.toLowerCase().contains(value.toLowerCase()) )
+        element.name.toLowerCase().contains(value.toLowerCase()))
         .toList();
-    print(searchList.length);
-    setState(() {
-
-    });
+    searchServiceList = serviceModelList
+        .where((element) =>
+        element.name.toLowerCase().contains(value.toLowerCase()))
+        .toList();
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: isLoading
-          ? Center(
-              child: Container(
-                height: 100,
-                width: 100,
-                alignment: Alignment.center,
-                child: const CircularProgressIndicator(),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5F0E6),
+        appBar: AppBar(
+          toolbarHeight: 150,
+          backgroundColor: const Color(0xFFE3D5C5),
+          centerTitle: true,
+          title: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Image.asset(
+              AssetsImages.instance.Casanarev,
+              height: 320,
+              fit: BoxFit.contain,
+              color: const Color(0xFF6B4F4F),
+            ),
+          ),
+          bottom: TabBar(
+            indicatorColor: const Color(0xFF6B4F4F),
+            labelColor: const Color(0xFF6B4F4F),
+            unselectedLabelColor: const Color(0xFFA78B7D),
+            tabs: const [
+              Tab(
+                child: Text(
+                  "Productos",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ),
-            )
-          : SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Tab(
+                child: Text(
+                  "Servicios",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        ),
+        body: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+          children: [
+            // Barra de búsqueda
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: TextField(
+                controller: search,
+                onChanged: searchItems,
+                decoration: InputDecoration(
+                  hintText: "Buscar...",
+                  prefixIcon:
+                  const Icon(Icons.search, color: Color(0xFF6B4F4F)),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide:
+                    const BorderSide(color: Color(0xFFD3C0B2)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide:
+                    const BorderSide(color: Color(0xFF6B4F4F)),
+                  ),
+                ),
+              ),
+            ),
+            // Pestañas: Productos / Servicios
+            Expanded(
+              child: TabBarView(
                 children: [
-                  Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-
-                          Center(
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxWidth: MediaQuery.of(context).size.width, // Máximo ancho de la pantalla
-                                maxHeight: 500, // Ajusta esto según el tamaño del logo
-                              ),
-                              child: Image.asset(
-                                AssetsImages.instance.logo,
-                                fit: BoxFit.fitWidth,
-                              ),
-                            ),
-                          ),
-
-
-                          const SizedBox(
-                            height: 2,
-                          ),
-                          TextFormField(
-                            controller: search,
-                            onChanged: (String value) {
-                              searchProducts(value);
-                            },
-                            decoration: InputDecoration(
-                              hintText: "Buscar...",
-                              hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 16),
-                              filled: true,
-                              fillColor: Colors.white,
-                              contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey.shade400, width: 1.5),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey.shade400, width: 1.5),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.blue, width: 2),
-                              ),
-                              prefixIcon: Icon(Icons.search, color: Colors.grey.shade600),
-                            ),
-                            style: TextStyle(fontSize: 16),
-                            cursorColor: Colors.blue,
-                          ),
-
-                          const SizedBox(
-                            height: 24,
-                          ),
-                          Center(
-                            child: Container(
-                              padding: EdgeInsets.symmetric(vertical: 10, horizontal: 132),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.grey.withOpacity(0.3),
-                                    spreadRadius: 7,
-                                    blurRadius: 6,
-                                    offset: Offset(0, 1),
-                                  ),
-                                ],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                "Categorías",
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-
-                  ),
-                  categoriesList.isEmpty
-                      ? const Center(
-                          child: Text("Categorias vacias"),
-                        )
-                      : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: categoriesList
-                          .map((e) => Padding(
-                        padding: const EdgeInsets.only(left: 8.0),
-                        child: CupertinoButton(
-                          padding: EdgeInsets.zero,
-                          onPressed: () {
-                            Routes.instance.push(
-                                widget: CategoryView(
-                                    categoryModel: e),
-                                context: context);
-                          },
-                          child: Card(
-                            color: Colors.white,
-                            elevation: 3,
-                            shape: RoundedRectangleBorder(
-                              borderRadius:
-                              BorderRadius.circular(20),
-                            ),
-                            child: SizedBox(
-                              height: 100,
-                              width: 100,
-                              child: Image.network(e.image),
-                            ),
-                          ),
-                        ),
-                      ))
-                          .toList(),
-                    ),
-                  ),
-                  const SizedBox(
-                    height: 12,
-                  ),
-                  !isSearched()? const Padding(
-                    padding: EdgeInsets.only(top: 12.0, left: 12),
-                    child: Text(
-                      "Mis productos",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ):SizedBox.fromSize(),
-                  const SizedBox(
-                    height: 12,
-                  ),
-                  search.text.isNotEmpty && searchList.isEmpty?Center(child: Text("Producto no encontrado"),):searchList.isNotEmpty?Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: GridView.builder(
-                        padding: EdgeInsets.only(bottom: 50),
-                        shrinkWrap: true,
-                        primary: false,
-                        itemCount: searchList.length,
-                        gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                            mainAxisSpacing: 20,
-                            crossAxisSpacing: 30,
-                            childAspectRatio: 0.7,
-                            crossAxisCount: 2),
-                        itemBuilder: (ctx, index) {
-                          ProductModel singleProduct =
-                          searchList[index];
-                          return Container(
-                            decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.5),
-                                borderRadius: BorderRadius.circular(8)),
-                            child: Column(
-                              children: [
-                                const SizedBox(
-                                  height: 12,
-                                ),
-                                Image.network(
-                                  singleProduct.image,
-                                  height: 100,
-                                  width: 100,
-                                ),
-                                const SizedBox(
-                                  height: 12,
-                                ),
-                                Text(
-                                  singleProduct.name,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text("Cantidad: ${singleProduct.qty}"),
-                                const SizedBox(
-                                  height: 30,
-                                ),
-                                SizedBox(
-                                  height: 45,
-                                  width: 120,
-                                  child: OutlinedButton(
-                                    onPressed: () {
-                                      Routes.instance.push(
-                                          widget: ProductDetails(
-                                              singleProduct:
-                                              singleProduct),
-                                          context: context);
-                                    },
-                                    child: const Text(
-                                      "Buy",
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
-                  ): productModelList.isEmpty
-                      ? const Center(
-                          child: Text("Sin productos"),
-                        )
-                      : Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: GridView.builder(
-                              padding: EdgeInsets.only(bottom: 50),
-                              shrinkWrap: true,
-                              primary: false,
-                              itemCount: productModelList.length,
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                      mainAxisSpacing: 20,
-                                      crossAxisSpacing: 30,
-                                      childAspectRatio: 0.7,
-                                      crossAxisCount: 2),
-                              itemBuilder: (ctx, index) {
-                                ProductModel singleProduct =
-                                    productModelList[index];
-                                //CONTENEDOR DE PRODUCTOS
-                                return Container(
-                                    decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.5),
-                                borderRadius: BorderRadius.circular(8),
-                                boxShadow: [
-                                BoxShadow(
-                                color: Colors.grey.withOpacity(0.5),
-                                spreadRadius: 5,
-                                blurRadius: 7,
-                                offset: Offset(0, 3), // Cambia el desplazamiento de la sombra según sea necesario
-                                ),
-                                ],
-                                    ),
-
-                                  child: Column(
-                                    children: [
-                                      const SizedBox(
-                                        height: 12,
-                                      ),
-                                      Image.network(
-                                        singleProduct.image,
-                                        height: 100,
-                                        width: 100,
-                                      ),
-                                      const SizedBox(
-                                        height: 12,
-                                      ),
-                                      Text(
-                                        singleProduct.name,
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(
-                                        height: 6,
-                                      ),
-                                      Text("Cantidad: ${singleProduct.qty}"),
-                                      const SizedBox(
-                                        height: 26,
-                                      ),
-                                      SizedBox(
-                                        height: 45,
-                                        width: 120,
-                                        child: OutlinedButton(
-                                          onPressed: () {
-                                            Routes.instance.push(
-                                                widget: ProductDetails(
-                                                    singleProduct:
-                                                        singleProduct),
-                                                context: context);
-                                          },
-                                          child: const Text(
-                                            "Editar",
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }),
-                        ),
-                  const SizedBox(
-                    height: 12,
-                  )
+                  _buildListView(
+                      search.text.isNotEmpty
+                          ? searchProductList
+                          : productModelList,
+                      true),
+                  _buildListView(
+                      search.text.isNotEmpty
+                          ? searchServiceList
+                          : serviceModelList,
+                      false),
                 ],
               ),
             ),
+          ],
+        ),
+
+        floatingActionButton: Padding(
+          padding: const EdgeInsets.only(bottom: 60.0),
+          child: FloatingActionButton(
+            backgroundColor: const Color(0xFF6B4F4F),
+            child: const Icon(Icons.add),
+            onPressed: () {
+              Routes.instance
+                  .push(widget: const RegisterSelection(), context: context)
+                  .then((_) {
+                // Al regresar de CreateProductPage, recargamos listas:
+                getCategoryList();
+              });
+            },
+          ),
+        ),
+        // ─────────────────────────────────────────────────────────────────
+      ),
     );
   }
-  bool isSearched(){
-    if (search.text.isNotEmpty && searchList.isEmpty){
+
+  /// Este método genera la cuadrícula de “tarjetas” de productos o servicios.
+  Widget _buildListView(List<dynamic> list, bool isProduct) {
+    return list.isEmpty
+        ? Center(
+      child: Text(
+        isProduct ? "Sin productos" : "Sin servicios",
+        style: const TextStyle(color: Color(0xFF6B4F4F)),
+      ),
+    )
+        : SingleChildScrollView(
+      child: Column(
+        children: [
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: list.length,
+            gridDelegate:
+            const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 15,
+              crossAxisSpacing: 15,
+              childAspectRatio: 0.65,
+            ),
+            itemBuilder: (ctx, index) =>
+                _buildItemCard(list[index], isProduct),
+          ),
+          // Espacio extra al final para separar del nav bar (si usas BottomNavigation)
+          const SizedBox(height: 100),
+        ],
+      ),
+    );
+  }
+
+  /// Cada tarjeta muestra:
+  ///  - Imagen
+  ///  - Nombre
+  ///  - Cantidad (si es producto) o Precio (si es servicio)
+  ///  - Botón “Editar” que al volver hace getCategoryList() para refrescar.
+  Widget _buildItemCard(dynamic item, bool isProduct) {
+    return Container(
+      margin: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F4EF),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.brown.withOpacity(0.5),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 130),
+              child: Image.network(
+                item.image,
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              item.name,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF4A3A3A),
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              isProduct
+                  ? "Cantidad: ${item.qty}"
+                  : "Precio: \$${item.price}",
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF6B4F4F),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 40,
+              width: 110,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFF6B4F4F)),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                ),
+                onPressed: () {
+                  /// IMPORTANTE: cada vez que regreses de la pantalla de "Editar",
+                  /// llamas a getCategoryList() para refrescar los datos en esta vista:
+                  Routes.instance
+                      .push(
+                    widget: isProduct
+                        ? ProductDetails(singleProduct: item)
+                        : ServiceDetails(singleService: item),
+                    context: context,
+                  )
+                      .then((_) {
+                    // Este callback se ejecuta cuando vuelves de la pantalla
+                    // de edición (o creación). Con esto, recargamos la lista.
+                    getCategoryList();
+                  });
+                },
+                child: const Text(
+                  "Editar",
+                  style: TextStyle(fontSize: 14),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// En este ejemplo, no es estrictamente necesario usar isSearched(),
+  /// ya que simplemente usamos `searchItems(...)` para filtrar. Pero lo dejamos
+  /// por si en un futuro quieres otra lógica condicional para búsquedas.
+  bool isSearched() {
+    if (search.text.isNotEmpty &&
+        searchProductList.isNotEmpty &&
+        searchServiceList.isNotEmpty) {
       return true;
-    }else if(search.text.isEmpty && searchList.isNotEmpty) {
+    } else if (search.text.isEmpty &&
+        searchProductList.isNotEmpty &&
+        searchServiceList.isNotEmpty) {
       return false;
-    } else if (searchList.isNotEmpty){
+    } else if (searchProductList.isNotEmpty &&
+        searchServiceList.isNotEmpty) {
       return true;
     } else {
       return false;

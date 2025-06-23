@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../constants/routes.dart';
 import '../../firebase_helper/firebase_firestore_helper/firebase_firestore.dart';
 import '../../models/product_model/product_model.dart';
+import '../../models/service_model/service_model.dart';
 import '../product_detail/product_details.dart';
 
 class CategoryView extends StatefulWidget {
@@ -17,6 +18,7 @@ class CategoryView extends StatefulWidget {
 
 class _CategoryViewState extends State<CategoryView> {
   List<ProductModel> productModelList = [];
+  List<ServiceModel> serviceModelList = [];
   bool isLoading = false;
 
   @override
@@ -30,10 +32,11 @@ class _CategoryViewState extends State<CategoryView> {
       isLoading = true;
     });
 
-
-    // Obtener los productos asociados a la categoría seleccionada
     productModelList = await FirebaseFirestoreHelper.instance.getCategoryViewProduct(widget.categoryModel.id);
+    serviceModelList = await FirebaseFirestoreHelper.instance.getCategoryViewService(widget.categoryModel.id);
+
     productModelList.shuffle();
+    serviceModelList.shuffle();
 
     setState(() {
       isLoading = false;
@@ -56,7 +59,7 @@ class _CategoryViewState extends State<CategoryView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: kToolbarHeight * 1,),
+            const SizedBox(height: kToolbarHeight * 1),
             Padding(
               padding: EdgeInsets.all(12),
               child: Row(
@@ -73,17 +76,15 @@ class _CategoryViewState extends State<CategoryView> {
               ),
             ),
 
-            productModelList.isEmpty
-                ? const Center(
-              child: Text("Sin productos"),
-            )
+            productModelList.isEmpty && serviceModelList.isEmpty
+                ? const Center(child: Text("Sin productos o servicios"))
                 : Padding(
               padding: const EdgeInsets.all(8.0),
               child: GridView.builder(
                 padding: EdgeInsets.zero,
                 shrinkWrap: true,
                 primary: false,
-                itemCount: productModelList.length,
+                itemCount: productModelList.length + serviceModelList.length,
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   mainAxisSpacing: 20,
                   crossAxisSpacing: 30,
@@ -91,57 +92,67 @@ class _CategoryViewState extends State<CategoryView> {
                   crossAxisCount: 2,
                 ),
                 itemBuilder: (ctx, index) {
-                  ProductModel singleProduct = productModelList[index];
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 12,),
-                        Image.network(
-                          singleProduct.image,
-                          height: 100,
-                          width: 100,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Icon(Icons.broken_image, size: 100, color: Colors.grey);
-                          },
-                        ),
-
-                        const SizedBox(height: 12,),
-                        Text(
-                          singleProduct.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text("price: \$${singleProduct.price}"),
-                        const SizedBox(height: 30,),
-                        SizedBox(
-                          height: 45,
-                          width: 120,
-                          child: OutlinedButton(
-                            onPressed: () {
-                              Routes.instance.push(
-                                widget: ProductDetails(singleProduct: singleProduct),
-                                context: context,
-                              );
-                            },
-                            child: const Text("Buy"),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
+                  if (index < productModelList.length) {
+                    ProductModel singleProduct = productModelList[index];
+                    return buildItem(singleProduct.name, singleProduct.image, singleProduct.price, () {
+                      Routes.instance.push(
+                        widget: ProductDetails(singleProduct: singleProduct),
+                        context: context,
+                      );
+                    });
+                  } else {
+                    ServiceModel singleService = serviceModelList[index - productModelList.length];
+                    return buildItem(singleService.name, singleService.image, singleService.price, () {
+                      // Acción al presionar servicio (podría ser una pantalla de detalles)
+                    });
+                  }
                 },
               ),
             ),
-            const SizedBox(height: 12,),
+            const SizedBox(height: 12),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget buildItem(String name, String image, double price, VoidCallback onTap) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          Image.network(
+            image,
+            height: 100,
+            width: 100,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Icon(Icons.broken_image, size: 100, color: Colors.grey);
+            },
+          ),
+          const SizedBox(height: 12),
+          Text(
+            name,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text("price: \\${price}"),
+          const SizedBox(height: 30),
+          SizedBox(
+            height: 45,
+            width: 120,
+            child: OutlinedButton(
+              onPressed: onTap,
+              child: const Text("Ver"),
+            ),
+          ),
+        ],
       ),
     );
   }

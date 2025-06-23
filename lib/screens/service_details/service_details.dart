@@ -1,35 +1,33 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:conexion/models/product_model/product_model.dart';
+import 'package:conexion/models/service_model/service_model.dart';
 import 'package:conexion/provider/app_provider.dart';
 import 'package:conexion/firebase_helper/firebase_firestore_helper/firebase_firestore.dart';
 import 'package:provider/provider.dart';
 
-class ProductDetails extends StatefulWidget {
-  final ProductModel singleProduct;
+class ServiceDetails extends StatefulWidget {
+  final ServiceModel singleService;
 
-  const ProductDetails({Key? key, required this.singleProduct}) : super(key: key);
+  const ServiceDetails({Key? key, required this.singleService}) : super(key: key);
 
   @override
-  State<ProductDetails> createState() => _ProductDetailsState();
+  State<ServiceDetails> createState() => _ServiceDetailsState();
 }
 
-class _ProductDetailsState extends State<ProductDetails> {
+class _ServiceDetailsState extends State<ServiceDetails> {
   File? image;
   TextEditingController nameController = TextEditingController();
   TextEditingController descriptionController = TextEditingController();
-  TextEditingController qtyController = TextEditingController();
   TextEditingController priceController = TextEditingController();
   TextEditingController discountController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    nameController.text = widget.singleProduct.name;
-    descriptionController.text = widget.singleProduct.description;
-    qtyController.text = widget.singleProduct.qty.toString();
-    priceController.text = widget.singleProduct.price.toString();
+    nameController.text = widget.singleService.name;
+    descriptionController.text = widget.singleService.description;
+    priceController.text = widget.singleService.price.toString();
   }
 
   void updatePicture() async {
@@ -44,48 +42,46 @@ class _ProductDetailsState extends State<ProductDetails> {
     }
   }
 
-  void updateProduct(BuildContext context) async {
+  void updateService(BuildContext context) async {
     try {
       String name = nameController.text;
       String description = descriptionController.text;
-      int qty = int.tryParse(qtyController.text) ?? 0;
       double price = double.tryParse(priceController.text) ?? 0.0;
-      await FirebaseFirestoreHelper.instance.updateProduct(
-        widget.singleProduct.id,
+      await FirebaseFirestoreHelper.instance.updateService(
+        widget.singleService.id,
         name,
         description,
-        qty,
         price,
       );
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Producto actualizado con éxito'),
+          content: Text('Servicio actualizado con éxito'),
         ),
       );
     } catch (e) {
-      print('Error al actualizar el producto: $e');
+      print('Error al actualizar el servicio: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Error al actualizar el producto'),
+          content: Text('Error al actualizar el servicio'),
         ),
       );
     }
   }
 
-  void deleteProduct(BuildContext context) async {
+  void deleteService(BuildContext context) async {
     try {
-      await FirebaseFirestoreHelper.instance.deleteProduct(widget.singleProduct.id);
+      await FirebaseFirestoreHelper.instance.deleteService(widget.singleService.id);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Producto eliminado con éxito'),
+          content: Text('Servicio eliminado con éxito'),
         ),
       );
       Navigator.pop(context);
     } catch (e) {
-      print('Error al eliminar el producto: $e');
+      print('Error al eliminar el servicio: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Error al eliminar el producto'),
+          content: Text('Error al eliminar el servicio'),
         ),
       );
     }
@@ -97,13 +93,12 @@ class _ProductDetailsState extends State<ProductDetails> {
       double originalPrice = double.tryParse(priceController.text) ?? 0.0;
       double discountedPrice = originalPrice - (originalPrice * discount / 100);
 
-      await FirebaseFirestoreHelper.instance.updateProduct(
-        widget.singleProduct.id,
+      await FirebaseFirestoreHelper.instance.updateService(
+        widget.singleService.id,
         nameController.text,
         descriptionController.text,
-        int.tryParse(qtyController.text) ?? 0,
         originalPrice, // Precio original
-        isOnPromotion: true, // Indica que el producto está en promoción
+        isOnPromotion: true, // Indica que el servicio está en promoción
         discountedPrice: discountedPrice, // Guarda el precio descontado
       );
 
@@ -182,7 +177,7 @@ class _ProductDetailsState extends State<ProductDetails> {
         elevation: 4,
         centerTitle: true,
         title: const Text(
-          "Editar Producto",
+          "Editar Servicio",
           style: TextStyle(
             color: Color(0xFF4A3A3A),
             fontWeight: FontWeight.w600,
@@ -248,11 +243,11 @@ class _ProductDetailsState extends State<ProductDetails> {
                                       fit: BoxFit.cover,
                                     ),
                                   ),
-                                if (widget.singleProduct.image.isNotEmpty && image == null)
+                                if (widget.singleService.image.isNotEmpty && image == null)
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(15),
                                     child: Image.network(
-                                      widget.singleProduct.image,
+                                      widget.singleService.image,
                                       width: double.infinity,
                                       height: double.infinity,
                                       fit: BoxFit.cover,
@@ -274,15 +269,8 @@ class _ProductDetailsState extends State<ProductDetails> {
                       const SizedBox(height: 18.0),
                       _buildInputField(
                         controller: nameController,
-                        label: 'Nombre del Producto',
-                        icon: Icons.shopping_cart,
-                      ),
-                      const SizedBox(height: 18.0),
-                      _buildInputField(
-                        controller: qtyController,
-                        label: 'Cantidad',
-                        icon: Icons.format_list_numbered,
-                        inputType: TextInputType.number,
+                        label: 'Nombre del Servicio',
+                        icon: Icons.work,
                       ),
                       const SizedBox(height: 18.0),
                       _buildInputField(
@@ -315,13 +303,13 @@ class _ProductDetailsState extends State<ProductDetails> {
                             text: 'Editar',
                             color: const Color(0xFF8F6645),
                             icon: Icons.edit,
-                            onPressed: () => updateProduct(context),
+                            onPressed: () => updateService(context),
                           ),
                           _buildActionButton(
                             text: 'Eliminar',
                             color: Colors.red,
                             icon: Icons.delete,
-                            onPressed: () => deleteProduct(context),
+                            onPressed: () => deleteService(context),
                           ),
                           _buildActionButton(
                             text: 'Aplicar promoción',
@@ -331,6 +319,7 @@ class _ProductDetailsState extends State<ProductDetails> {
                           ),
                         ],
                       ),
+
                       // Espacio extra para asegurar que el contenido final sea visible
                       const SizedBox(height: 50),
                     ],

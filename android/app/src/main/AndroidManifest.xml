@@ -3,7 +3,7 @@
 
     package="com.example.conexion">
    <application
-        android:label="conexion"
+        android:label="CasanareVende"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
